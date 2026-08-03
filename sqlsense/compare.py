@@ -2,13 +2,14 @@
 compare(base_sql, head_sql) -> Verdict
 
 Pipeline: Stage 0 (parse/fragment-check) -> Stage 1 (canonicalize) ->
-Stage 2 (canonical-string equality) -> schema check -> Stage 4
-(counterexample search) -> UNKNOWN.
+Stage 2 (canonical-string equality) -> schema check -> Stage 3 (SMT proof)
+-> Stage 4 (counterexample search) -> UNKNOWN.
 
-Stage 3 (SMT proof for the conjunctive fragment) is not implemented yet, so
-cases that Stage 2 can't resolve and Stage 4 can't find a counterexample
-for fall through to UNKNOWN with a reason code. Undercoverage there is
-correct behavior, never a wrong answer -- the alternative is guessing.
+Stage 3 is tried before Stage 4 because it's both cheaper (no DB instances
+to synthesize or execute) and a stronger claim (an actual proof, not "we
+tried some instances and found nothing"). Cases neither stage resolves
+fall through to UNKNOWN with a reason code -- undercoverage there is
+correct behavior, never a wrong answer.
 """
 
 from sqlsense.canonicalize import (
@@ -20,6 +21,7 @@ from sqlsense.canonicalize import (
 )
 from sqlsense.catalog import Catalog
 from sqlsense.counterexample import format_witness, search as search_counterexample
+from sqlsense.stage3 import prove_equivalent
 from sqlsense.verdict import Verdict
 
 NO_CATALOG_ASSUMPTION = (
@@ -64,6 +66,13 @@ def compare(base_sql: str, head_sql: str, catalog: Catalog | None = None) -> Ver
         return Verdict.schema_change(f"output columns differ: {base_schema} vs {head_schema}")
 
     try:
+        stage3_verdict = prove_equivalent(base_canon, head_canon, catalog=catalog)
+    except Exception:
+        stage3_verdict = None
+    if stage3_verdict is not None:
+        return stage3_verdict
+
+    try:
         witness = search_counterexample(base_canon, head_canon, catalog=catalog)
     except Exception:
         witness = None
@@ -79,7 +88,7 @@ def compare(base_sql: str, head_sql: str, catalog: Catalog | None = None) -> Ver
         )
 
     return Verdict.unknown(
-        "no_stage2_match_no_counterexample",
-        "canonical forms differ; no counterexample found by Stage 4's search "
-        "(does not prove equivalence -- Stage 3 proof not implemented yet)",
+        "no_stage2_match_no_proof_no_counterexample",
+        "canonical forms differ; neither Stage 3's proof search nor Stage 4's "
+        "counterexample search resolved this",
     )
