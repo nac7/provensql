@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>sqlsense — pair labeling tool (local, offline)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+  h1 { font-size: 1.1rem; }
+  #meta { color: #888; font-size: 0.85rem; margin-bottom: 8px; }
+  .cols { display: flex; gap: 12px; }
+  .col { flex: 1; min-width: 0; }
+  .col h3 { margin: 4px 0; font-size: 0.85rem; color: #888; }
+  pre { background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; font-size: 0.82rem; max-height: 420px; overflow-y: auto; }
+  @media (prefers-color-scheme: light) { pre { background: #f4f4f4; color: #222; } }
+  .btns { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; }
+  button { padding: 10px 16px; border-radius: 6px; border: 1px solid #888; background: transparent; cursor: pointer; font-size: 0.95rem; }
+  button.active { outline: 3px solid #4a9eff; }
+  button.eq { border-color: #2ecc71; } button.eq.active { background: #2ecc7133; }
+  button.diff { border-color: #e74c3c; } button.diff.active { background: #e74c3c33; }
+  button.schema { border-color: #f39c12; } button.schema.active { background: #f39c1233; }
+  button.unk { border-color: #999; } button.unk.active { background: #99999933; }
+  #nav { display: flex; gap: 8px; align-items: center; margin: 10px 0; }
+  #notes { width: 100%; box-sizing: border-box; margin-top: 6px; }
+  #progress { font-size: 0.85rem; }
+  input[type=file] { margin-bottom: 12px; }
+  .touched { font-size: 0.8rem; color: #888; }
+</style>
+</head>
+<body>
+<h1>sqlsense pair labeling — fully local, nothing leaves this browser tab</h1>
+<p>Load <code>output/to_label.jsonl</code> (produced by <code>sample_for_labeling.py</code>), label each pair,
+then click "Download labeled.jsonl" when done. State is kept in the tab only.</p>
+<input type="file" id="fileInput" accept=".jsonl">
+<div id="progress"></div>
+<div id="app" style="display:none">
+  <div id="meta"></div>
+  <div class="cols">
+    <div class="col"><h3>BASE</h3><pre id="baseSql"></pre></div>
+    <div class="col"><h3>HEAD</h3><pre id="headSql"></pre></div>
+  </div>
+  <div class="btns">
+    <button class="eq" data-label="EQUIVALENT">EQUIVALENT</button>
+    <button class="diff" data-label="DIFFERENT">DIFFERENT</button>
+    <button class="schema" data-label="SCHEMA_CHANGE">SCHEMA_CHANGE</button>
+    <button class="unk" data-label="UNKNOWN">UNKNOWN</button>
+  </div>
+  <textarea id="notes" rows="2" placeholder="notes (optional): e.g. 'LEFT JOIN -> JOIN, drops NULL customer_id rows'"></textarea>
+  <div id="nav">
+    <button id="prev">&larr; prev</button>
+    <button id="next">next &rarr;</button>
+    <span id="idx"></span>
+    <button id="download" style="margin-left:auto">Download labeled.jsonl</button>
+  </div>
+</div>
+<script>
+let data = [];
+let i = 0;
+
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  const text = await file.text();
+  data = text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+  i = 0;
+  document.getElementById('app').style.display = 'block';
+  render();
+});
+
+function render() {
+  if (!data.length) return;
+  const rec = data[i];
+  document.getElementById('meta').textContent =
+    `[${i+1}/${data.length}] repo=${rec.repo}  path=${rec.path}  auto-bucket=${rec.bucket}  touched=${JSON.stringify(rec.touched_node_types || {})}`;
+  document.getElementById('baseSql').textContent = rec.base;
+  document.getElementById('headSql').textContent = rec.head;
+  document.getElementById('notes').value = rec.notes || '';
+  document.querySelectorAll('.btns button').forEach(b => {
+    b.classList.toggle('active', b.dataset.label === rec.human_label);
+  });
+  const labeled = data.filter(d => d.human_label).length;
+  document.getElementById('idx').textContent = `  (${labeled}/${data.length} labeled)`;
+}
+
+document.querySelectorAll('.btns button').forEach(b => {
+  b.addEventListener('click', () => {
+    data[i].human_label = b.dataset.label;
+    render();
+    if (i < data.length - 1) { i++; render(); }
+  });
+});
+
+document.getElementById('notes').addEventListener('input', (e) => {
+  data[i].notes = e.target.value;
+});
+
+document.getElementById('prev').addEventListener('click', () => { if (i > 0) { i--; render(); } });
+document.getElementById('next').addEventListener('click', () => { if (i < data.length - 1) { i++; render(); } });
+
+document.addEventListener('keydown', (e) => {
+  if (document.activeElement.id === 'notes') return;
+  if (e.key === '1') document.querySelector('[data-label=EQUIVALENT]').click();
+  if (e.key === '2') document.querySelector('[data-label=DIFFERENT]').click();
+  if (e.key === '3') document.querySelector('[data-label=SCHEMA_CHANGE]').click();
+  if (e.key === '4') document.querySelector('[data-label=UNKNOWN]').click();
+  if (e.key === 'ArrowLeft') document.getElementById('prev').click();
+  if (e.key === 'ArrowRight') document.getElementById('next').click();
+});
+
+document.getElementById('download').addEventListener('click', () => {
+  const out = data.map(d => JSON.stringify(d)).join('\n');
+  const blob = new Blob([out], { type: 'application/jsonl' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'labeled.jsonl';
+  a.click();
+});
+</script>
+</body>
+</html>

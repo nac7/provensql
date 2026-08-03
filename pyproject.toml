@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sqlsense"
+version = "0.1.0"
+description = "Sound-by-construction semantic diff for SQL: know whether a query edit changes the answer."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Nachiket Lele" }]
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Database",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "sqlglot>=25.0.0",
+    "duckdb>=1.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[project.urls]
+Repository = "https://github.com/nac7/sqlsense"
+
+[project.scripts]
+sqlsense = "sqlsense.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["sqlsense*"]

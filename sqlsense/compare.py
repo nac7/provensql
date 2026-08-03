@@ -1,0 +1,85 @@
+"""
+compare(base_sql, head_sql) -> Verdict
+
+Pipeline: Stage 0 (parse/fragment-check) -> Stage 1 (canonicalize) ->
+Stage 2 (canonical-string equality) -> schema check -> Stage 4
+(counterexample search) -> UNKNOWN.
+
+Stage 3 (SMT proof for the conjunctive fragment) is not implemented yet, so
+cases that Stage 2 can't resolve and Stage 4 can't find a counterexample
+for fall through to UNKNOWN with a reason code. Undercoverage there is
+correct behavior, never a wrong answer -- the alternative is guessing.
+"""
+
+from sqlsense.canonicalize import (
+    UnsupportedConstruct,
+    canonical_string,
+    canonicalize,
+    output_schema,
+    parse,
+)
+from sqlsense.catalog import Catalog
+from sqlsense.counterexample import format_witness, search as search_counterexample
+from sqlsense.verdict import Verdict
+
+NO_CATALOG_ASSUMPTION = (
+    "no catalog supplied -- witness assumes no NOT NULL/UNIQUE/FK constraints "
+    "beyond what the query text itself implies; verify against your actual schema"
+)
+CATALOG_ASSUMPTION = (
+    "catalog covers some but not necessarily all referenced tables/columns; "
+    "uncovered ones still fall back to the no-constraints assumption above"
+)
+
+
+def compare(base_sql: str, head_sql: str, catalog: Catalog | None = None) -> Verdict:
+    try:
+        base_tree = parse(base_sql)
+    except UnsupportedConstruct as e:
+        return Verdict.unknown(f"base_{e.reason_code}", e.detail)
+
+    try:
+        head_tree = parse(head_sql)
+    except UnsupportedConstruct as e:
+        return Verdict.unknown(f"head_{e.reason_code}", e.detail)
+
+    base_canon = canonicalize(base_tree)
+    head_canon = canonicalize(head_tree)
+
+    base_str = canonical_string(base_canon)
+    head_str = canonical_string(head_canon)
+
+    if base_str == head_str:
+        return Verdict.equivalent(
+            "canonical forms identical after qualify + constant-fold/simplify + normalize",
+            assumptions=(
+                "qualify() is best-effort without a real catalog; identifiers may be "
+                "left unqualified if resolution failed",
+            ),
+        )
+
+    base_schema = output_schema(base_canon)
+    head_schema = output_schema(head_canon)
+    if base_schema is not None and head_schema is not None and base_schema != head_schema:
+        return Verdict.schema_change(f"output columns differ: {base_schema} vs {head_schema}")
+
+    try:
+        witness = search_counterexample(base_canon, head_canon, catalog=catalog)
+    except Exception:
+        witness = None
+
+    if witness is not None:
+        assumptions = (CATALOG_ASSUMPTION,) if catalog else (NO_CATALOG_ASSUMPTION,)
+        return Verdict.different(
+            f"counterexample found (instance '{witness['instance_name']}'): "
+            f"base returned {len(witness['base_result'])} rows, "
+            f"head returned {len(witness['head_result'])} rows",
+            witness=format_witness(witness),
+            assumptions=assumptions,
+        )
+
+    return Verdict.unknown(
+        "no_stage2_match_no_counterexample",
+        "canonical forms differ; no counterexample found by Stage 4's search "
+        "(does not prove equivalence -- Stage 3 proof not implemented yet)",
+    )

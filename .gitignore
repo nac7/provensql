@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+*.venv/
+venv/
+
+# Mining artifacts -- these hold verbatim source snippets pulled from
+# third-party repos (mozilla/bigquery-etl is MPL-2.0). Keep the harness
+# code public; keep the mined/labeled data and full repo clones private.
+# See README.md "Corpus & licensing" for why.
+mining/repos/
+mining/output/*.jsonl
+mining/output/chunks/

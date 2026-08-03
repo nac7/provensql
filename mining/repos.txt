@@ -1,0 +1,6 @@
+# Candidate repos for mining real (base, head) SQL change pairs.
+# Chosen for: real BigQuery-dialect SQL, active PR/commit history, public, no auth needed.
+# format: git-url
+https://github.com/mozilla/bigquery-etl.git
+https://github.com/GoogleCloudPlatform/bigquery-utils.git
+https://github.com/dbt-labs/jaffle-shop-classic.git
