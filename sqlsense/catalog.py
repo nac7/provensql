@@ -13,17 +13,32 @@ or `project.dataset.udf_js.y` don't exist in DuckDB).
 File format:
 
     tables:
-      my_table:
+      orders:
         columns:
           id: INT64
-          name: STRING
-          created_at: TIMESTAMP
+          customer_id: INT64
+        not_null: [customer_id]
+        foreign_keys:
+          customer_id: customers.id
+      customers:
+        columns:
+          id: INT64
+        unique: [id]
     udfs:
       - mozfun.norm.diff_months
       - moz-fx-data-shared-prod.udf_js.parse_sponsored_interaction
 
 Tables/columns not listed fall back to heuristic inference; this is meant
 to be filled in incrementally, not to require a full schema dump.
+
+not_null/unique/foreign_keys are used by Stage 3 to justify treating a
+LEFT JOIN as equivalent to an INNER JOIN: if orders.customer_id is NOT NULL
+and has a foreign key to customers.id, and customers.id is UNIQUE, then
+every orders row is guaranteed exactly one match in customers -- the two
+join types can never actually produce different results, so a diff that
+only changes the join type there is safe. This is exactly the same "print
+what you assumed" discipline as everything else catalog-driven in this
+project: the assumption is stated in the verdict, not hidden.
 """
 
 from dataclasses import dataclass, field
@@ -63,6 +78,18 @@ class CatalogTypeUnsupported(Exception):
 class Catalog:
     tables: dict[str, dict[str, str]] = field(default_factory=dict)  # table -> {col: our ColumnType}
     udfs: set[str] = field(default_factory=set)  # lowercased fully-qualified names, backticks stripped
+    not_null: dict[str, set[str]] = field(default_factory=dict)  # table -> {col, ...}
+    unique: dict[str, set[str]] = field(default_factory=dict)  # table -> {col, ...}
+    foreign_keys: dict[str, dict[str, tuple[str, str]]] = field(default_factory=dict)  # table -> {col: (target_table, target_col)}
+
+    def is_not_null(self, table: str, col: str) -> bool:
+        return col in self.not_null.get(table, ())
+
+    def is_unique(self, table: str, col: str) -> bool:
+        return col in self.unique.get(table, ())
+
+    def fk_target(self, table: str, col: str) -> tuple[str, str] | None:
+        return self.foreign_keys.get(table, {}).get(col)
 
 
 def _map_bq_type(bq_type: str) -> str:
@@ -77,13 +104,30 @@ def load(path: str | Path) -> Catalog:
         data = yaml.safe_load(f) or {}
 
     tables = {}
+    not_null = {}
+    unique = {}
+    foreign_keys = {}
     for table, spec in (data.get("tables") or {}).items():
-        cols = (spec or {}).get("columns") or {}
+        spec = spec or {}
+        cols = spec.get("columns") or {}
         tables[table] = {col: _map_bq_type(str(bq_type)) for col, bq_type in cols.items()}
+
+        if spec.get("not_null"):
+            not_null[table] = set(spec["not_null"])
+        if spec.get("unique"):
+            unique[table] = set(spec["unique"])
+        if spec.get("foreign_keys"):
+            fks = {}
+            for col, target in spec["foreign_keys"].items():
+                target_table, _, target_col = str(target).rpartition(".")
+                if not target_table:
+                    raise ValueError(f"foreign_keys.{col}: expected 'table.column', got {target!r}")
+                fks[col] = (target_table, target_col)
+            foreign_keys[table] = fks
 
     udfs = {u.strip("`").lower() for u in (data.get("udfs") or [])}
 
-    return Catalog(tables=tables, udfs=udfs)
+    return Catalog(tables=tables, udfs=udfs, not_null=not_null, unique=unique, foreign_keys=foreign_keys)
 
 
 def apply(table_schemas: dict, catalog: Catalog | None) -> dict:

@@ -1,25 +1,35 @@
 """
 Stage 3: SMT proof of equivalence for the conjunctive fragment.
 
-All-or-nothing by design: if the relational skeleton (tables/joins/group-by)
-doesn't match exactly, or any single WHERE/HAVING/SELECT-list expression
-can't be proven equivalent, this abstains entirely (returns None) rather
-than claim a partial result. A proof that "9 of 10 SELECT columns match" is
-not a proof the queries are equivalent -- it's not a proof of anything.
+All-or-nothing by design: if the relational skeleton doesn't match, or any
+single WHERE/HAVING/SELECT-list expression can't be proven equivalent, this
+abstains entirely (returns None) rather than claim a partial result. A
+proof that "9 of 10 SELECT columns match" is not a proof the queries are
+equivalent -- it's not a proof of anything.
+
+Skeleton matching is two-tiered:
+  1. skeleton_signature: exact string match of tables/joins/group-by/order/
+     limit. Cheap, catches the common case (only WHERE/HAVING/SELECT
+     bodies changed).
+  2. If that fails: skeleton_signature_sans_joins (same, but ignoring FROM/
+     JOIN) plus join_algebra.equivalent, which allows a join's ON condition
+     to be logically-but-not-syntactically equivalent, and a LEFT<->INNER
+     type change when the catalog proves it's a no-op. See join_algebra.py
+     for why that's sound.
 """
 
 from sqlglot import exp
 
 from sqlsense import catalog as catalog_module
+from sqlsense import join_algebra
 from sqlsense import schema_infer as si
 from sqlsense import skeleton
 from sqlsense.smt import build_column_vars, expressions_equivalent
 from sqlsense.verdict import Verdict
 
 SMT_ASSUMPTION = (
-    "SMT proof covers WHERE/HAVING/SELECT-list scalar expressions only, under an "
-    "identical relational skeleton (same tables/joins/group-by); column types are "
-    "inferred (or catalog-provided) and division-by-zero is not modeled"
+    "SMT proof covers WHERE/HAVING/SELECT-list scalar expressions only; column types "
+    "are inferred (or catalog-provided) and division-by-zero is not modeled"
 )
 
 
@@ -31,14 +41,26 @@ def _predicate(where_or_having) -> exp.Expression:
     return where_or_having.this if where_or_having is not None else exp.true()
 
 
+def _skeletons_match(base_tree, head_tree, column_vars, catalog) -> tuple[bool, list[str]]:
+    base_skel = skeleton.skeleton_signature(base_tree)
+    head_skel = skeleton.skeleton_signature(head_tree)
+    if base_skel is not None and base_skel == head_skel:
+        return True, []
+
+    base_skel2 = skeleton.skeleton_signature_sans_joins(base_tree)
+    head_skel2 = skeleton.skeleton_signature_sans_joins(head_tree)
+    if base_skel2 is None or base_skel2 != head_skel2:
+        return False, []
+
+    return join_algebra.equivalent(base_tree, head_tree, column_vars, catalog)
+
+
 def prove_equivalent(
     base_tree: exp.Expression,
     head_tree: exp.Expression,
     catalog: catalog_module.Catalog | None = None,
 ) -> Verdict | None:
-    base_skel = skeleton.skeleton_signature(base_tree)
-    head_skel = skeleton.skeleton_signature(head_tree)
-    if base_skel is None or head_skel is None or base_skel != head_skel:
+    if not (isinstance(base_tree, exp.Select) and isinstance(head_tree, exp.Select)):
         return None
 
     base_schema = si.infer([base_tree])
@@ -51,6 +73,10 @@ def prove_equivalent(
 
     try:
         column_vars = build_column_vars(table_schemas)
+
+        skeleton_ok, join_assumptions = _skeletons_match(base_tree, head_tree, column_vars, catalog)
+        if not skeleton_ok:
+            return None
 
         if not expressions_equivalent(
             _predicate(base_tree.args.get("where")), _predicate(head_tree.args.get("where")), column_vars
@@ -71,8 +97,10 @@ def prove_equivalent(
     except Exception:
         return None  # any internal failure abstains -- never guess
 
+    assumptions = (SMT_ASSUMPTION, *join_assumptions)
     return Verdict.equivalent(
-        "SMT-proved: identical relational skeleton, all WHERE/HAVING/SELECT expressions "
-        "proven logically equivalent under 3-valued NULL semantics",
-        assumptions=(SMT_ASSUMPTION,),
+        "SMT-proved: relational skeleton matched (exactly, or via a justified join-type "
+        "substitution), all WHERE/HAVING/SELECT expressions proven logically equivalent "
+        "under 3-valued NULL semantics",
+        assumptions=assumptions,
     )
