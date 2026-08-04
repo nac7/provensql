@@ -7,21 +7,31 @@ abstains entirely (returns None) rather than claim a partial result. A
 proof that "9 of 10 SELECT columns match" is not a proof the queries are
 equivalent -- it's not a proof of anything.
 
-Skeleton matching is two-tiered:
-  1. skeleton_signature: exact string match of tables/joins/group-by/order/
-     limit. Cheap, catches the common case (only WHERE/HAVING/SELECT
-     bodies changed).
-  2. If that fails: skeleton_signature_sans_joins (same, but ignoring FROM/
-     JOIN) plus join_algebra.equivalent, which allows a join's ON condition
-     to be logically-but-not-syntactically equivalent, and a LEFT<->INNER
-     type change when the catalog proves it's a no-op. See join_algebra.py
-     for why that's sound.
+Everything except FROM/JOIN/WHERE must match via skeleton_signature_sans_joins
+(GROUP BY compared as a set, output aliases/positions fixed, ORDER BY/LIMIT
+exact) -- that's a hard precondition for all three strategies below, tried
+cheapest first:
+
+  1. Exact skeleton match (skeleton_signature, joins included as written).
+     Catches the common case: only WHERE/HAVING/SELECT bodies changed.
+  2. join_algebra.equivalent -- allows a LEFT<->INNER type substitution
+     (catalog-justified) or reordering a chain of plain INNER joins, then
+     still requires WHERE to match separately.
+  3. pushdown.combined_predicate_equivalent -- when every join on both
+     sides is a plain INNER join, folds all ON conditions and WHERE into
+     one conjunction per side and proves those equivalent, so a condition
+     is free to have moved between an ON clause and WHERE. This subsumes
+     (2)'s ON-matching for the fully-inner case but doesn't attempt
+     LEFT/RIGHT/FULL reasoning at all -- see pushdown.py for why moving a
+     predicate across an outer join is a real semantic change, not a
+     refactor.
 """
 
 from sqlglot import exp
 
 from sqlsense import catalog as catalog_module
 from sqlsense import join_algebra
+from sqlsense import pushdown
 from sqlsense import schema_infer as si
 from sqlsense import skeleton
 from sqlsense.smt import build_column_vars, expressions_equivalent
@@ -41,18 +51,26 @@ def _predicate(where_or_having) -> exp.Expression:
     return where_or_having.this if where_or_having is not None else exp.true()
 
 
-def _skeletons_match(base_tree, head_tree, column_vars, catalog) -> tuple[bool, list[str]]:
+def _where_matches(base_tree, head_tree, column_vars) -> bool:
+    return expressions_equivalent(
+        _predicate(base_tree.args.get("where")), _predicate(head_tree.args.get("where")), column_vars
+    )
+
+
+def _joins_and_where_match(base_tree, head_tree, column_vars, catalog) -> tuple[bool, list[str]]:
     base_skel = skeleton.skeleton_signature(base_tree)
     head_skel = skeleton.skeleton_signature(head_tree)
     if base_skel is not None and base_skel == head_skel:
+        return _where_matches(base_tree, head_tree, column_vars), []
+
+    join_ok, join_assumptions = join_algebra.equivalent(base_tree, head_tree, column_vars, catalog)
+    if join_ok and _where_matches(base_tree, head_tree, column_vars):
+        return True, join_assumptions
+
+    if pushdown.combined_predicate_equivalent(base_tree, head_tree, column_vars):
         return True, []
 
-    base_skel2 = skeleton.skeleton_signature_sans_joins(base_tree)
-    head_skel2 = skeleton.skeleton_signature_sans_joins(head_tree)
-    if base_skel2 is None or base_skel2 != head_skel2:
-        return False, []
-
-    return join_algebra.equivalent(base_tree, head_tree, column_vars, catalog)
+    return False, []
 
 
 def prove_equivalent(
@@ -61,6 +79,11 @@ def prove_equivalent(
     catalog: catalog_module.Catalog | None = None,
 ) -> Verdict | None:
     if not (isinstance(base_tree, exp.Select) and isinstance(head_tree, exp.Select)):
+        return None
+
+    base_skel_sans_joins = skeleton.skeleton_signature_sans_joins(base_tree)
+    head_skel_sans_joins = skeleton.skeleton_signature_sans_joins(head_tree)
+    if base_skel_sans_joins is None or base_skel_sans_joins != head_skel_sans_joins:
         return None
 
     base_schema = si.infer([base_tree])
@@ -74,14 +97,10 @@ def prove_equivalent(
     try:
         column_vars = build_column_vars(table_schemas)
 
-        skeleton_ok, join_assumptions = _skeletons_match(base_tree, head_tree, column_vars, catalog)
-        if not skeleton_ok:
+        joins_ok, join_assumptions = _joins_and_where_match(base_tree, head_tree, column_vars, catalog)
+        if not joins_ok:
             return None
 
-        if not expressions_equivalent(
-            _predicate(base_tree.args.get("where")), _predicate(head_tree.args.get("where")), column_vars
-        ):
-            return None
         if not expressions_equivalent(
             _predicate(base_tree.args.get("having")), _predicate(head_tree.args.get("having")), column_vars
         ):
@@ -99,8 +118,8 @@ def prove_equivalent(
 
     assumptions = (SMT_ASSUMPTION, *join_assumptions)
     return Verdict.equivalent(
-        "SMT-proved: relational skeleton matched (exactly, or via a justified join-type "
-        "substitution), all WHERE/HAVING/SELECT expressions proven logically equivalent "
-        "under 3-valued NULL semantics",
+        "SMT-proved: relational skeleton matched (exactly, via a justified join-type "
+        "substitution, or via WHERE/ON predicate pushdown for an all-INNER join), all "
+        "HAVING/SELECT expressions proven logically equivalent under 3-valued NULL semantics",
         assumptions=assumptions,
     )
