@@ -1,5 +1,7 @@
 # sqlsense
 
+[![CI](https://github.com/nac7/sqlsense/actions/workflows/ci.yml/badge.svg)](https://github.com/nac7/sqlsense/actions/workflows/ci.yml)
+
 **Sound-by-construction semantic diff for SQL.** Given two versions of a query, sqlsense tells you whether the edit could change the answer — and it is built so that it can never wrongly tell you "no change" when there was one.
 
 ```
