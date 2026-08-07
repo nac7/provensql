@@ -22,8 +22,8 @@ from functools import reduce
 
 from sqlglot import exp
 
-from sqlsense import join_algebra
-from sqlsense.smt import expressions_equivalent
+from provensql import join_algebra
+from provensql.smt import expressions_equivalent
 
 
 def _conjunction(parts: list[exp.Expression]) -> exp.Expression:

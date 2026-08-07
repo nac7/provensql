@@ -1,5 +1,5 @@
 """
-sqlsense mining harness -- Stage A: extract (base, head) SQL pairs.
+provensql mining harness -- Stage A: extract (base, head) SQL pairs.
 
 Walks the commit history of a git repo (already cloned, --filter=blob:none
 --no-checkout is fine since we fetch blobs on demand via `git show`), finds

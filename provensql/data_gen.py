@@ -8,7 +8,7 @@ small and few in number by design -- this is meant to catch the common,
 structural cases fast, not to be an exhaustive fuzzer.
 """
 
-from sqlsense import schema_infer as si
+from provensql import schema_infer as si
 
 Row = dict
 Instance = dict  # table -> list[Row]

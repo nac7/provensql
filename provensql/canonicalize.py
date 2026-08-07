@@ -1,5 +1,5 @@
 """
-Stage 0 (parse + fragment check) and Stage 1 (canonicalize) for sqlsense v0.
+Stage 0 (parse + fragment check) and Stage 1 (canonicalize) for provensql v0.
 
 Scope is deliberately narrow (see project spec): single-statement SELECT
 with FROM/JOIN, WHERE, GROUP BY/HAVING, ORDER BY/LIMIT, non-recursive CTEs,

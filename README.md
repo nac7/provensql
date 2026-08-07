@@ -1,11 +1,11 @@
-# sqlsense
+# provensql
 
-[![CI](https://github.com/nac7/sqlsense/actions/workflows/ci.yml/badge.svg)](https://github.com/nac7/sqlsense/actions/workflows/ci.yml)
+[![CI](https://github.com/nac7/provensql/actions/workflows/ci.yml/badge.svg)](https://github.com/nac7/provensql/actions/workflows/ci.yml)
 
-**Sound-by-construction semantic diff for SQL.** Given two versions of a query, sqlsense tells you whether the edit could change the answer — and it is built so that it can never wrongly tell you "no change" when there was one.
+**Sound-by-construction semantic diff for SQL.** Given two versions of a query, provensql tells you whether the edit could change the answer — and it is built so that it can never wrongly tell you "no change" when there was one.
 
 ```
-$ sqlsense diff before.sql after.sql
+$ provensql diff before.sql after.sql
 DIFFERENT: counterexample found (instance 'with_null_row'): base returned 4 rows, head returned 5 rows
   assuming: no catalog supplied -- witness assumes no NOT NULL/UNIQUE/FK constraints
   beyond what the query text itself implies; verify against your actual schema
@@ -15,7 +15,7 @@ DIFFERENT: counterexample found (instance 'with_null_row'): base returned 4 rows
 
 Every team that ships SQL has had the "we changed the query and something broke" incident. `sqlglot` and `sqlfluff` give you a parser and a linter; dbt gives you tests you have to write yourself; an LLM judge will confidently tell you two queries are equivalent when they aren't (see [Evaluation](#evaluation) — this is not hypothetical). Nothing answers the actual question a reviewer has: **will this change the output, for some input the tests didn't cover?**
 
-sqlsense answers that question the way a formal tool should: it returns one of four verdicts, and each one means exactly what it says.
+provensql answers that question the way a formal tool should: it returns one of four verdicts, and each one means exactly what it says.
 
 ## Verdicts
 
@@ -24,9 +24,9 @@ sqlsense answers that question the way a formal tool should: it returns one of f
 | `EQUIVALENT` | Proven identical output for **any** database instance | Canonical-form equality (Stage 2) or an SMT proof (Stage 3) |
 | `SCHEMA_CHANGE` | Output columns differ in name, order, or type | Static schema comparison |
 | `DIFFERENT` | A concrete database instance exists where the outputs diverge | An actual counterexample, executed and shown to you (Stage 4) |
-| `UNKNOWN` | Outside what sqlsense can currently decide | Refusal, with a machine-readable reason code |
+| `UNKNOWN` | Outside what provensql can currently decide | Refusal, with a machine-readable reason code |
 
-**The one rule that matters more than any feature:** sqlsense must never return `EQUIVALENT` unless it has actually proven it. This isn't a design goal stated in a doc somewhere — it's enforced in the type system. `Verdict.different()` raises `ValueError` if you call it without a witness, and there is no code path anywhere in the pipeline that can construct a false `EQUIVALENT` verdict. Undercoverage (`UNKNOWN`) is the correct, honest failure mode; a wrong answer is not.
+**The one rule that matters more than any feature:** provensql must never return `EQUIVALENT` unless it has actually proven it. This isn't a design goal stated in a doc somewhere — it's enforced in the type system. `Verdict.different()` raises `ValueError` if you call it without a witness, and there is no code path anywhere in the pipeline that can construct a false `EQUIVALENT` verdict. Undercoverage (`UNKNOWN`) is the correct, honest failure mode; a wrong answer is not.
 
 ## How it works
 
@@ -47,7 +47,7 @@ parse (Stage 0) → canonicalize (Stage 1) → canonical-form match? → EQUIVAL
 
 ### Optional catalog
 
-Without a catalog, sqlsense infers column types heuristically from how each column is used in the query (a literal comparison, a cast) and refuses to execute any call to a function it doesn't recognize. A `--catalog schema.yml` overrides this with ground truth:
+Without a catalog, provensql infers column types heuristically from how each column is used in the query (a literal comparison, a cast) and refuses to execute any call to a function it doesn't recognize. A `--catalog schema.yml` overrides this with ground truth:
 
 ```yaml
 tables:
@@ -59,24 +59,24 @@ udfs:
   - mozfun.norm.diff_months
 ```
 
-Catalog-declared UDFs get a deterministic stand-in registered in DuckDB (see `sqlsense/udf_rewrite.py` for why a stub is sound here even though it doesn't reproduce the UDF's real logic). Columns declared `ARRAY`/`STRUCT` cause a clean `UNKNOWN` rather than fabricated flat data.
+Catalog-declared UDFs get a deterministic stand-in registered in DuckDB (see `provensql/udf_rewrite.py` for why a stub is sound here even though it doesn't reproduce the UDF's real logic). Columns declared `ARRAY`/`STRUCT` cause a clean `UNKNOWN` rather than fabricated flat data.
 
 ## Install
 
 ```
 pip install -e .
-sqlsense diff base.sql head.sql [--catalog schema.yml]
+provensql diff base.sql head.sql [--catalog schema.yml]
 ```
 
 Exit codes are CI-friendly: `0` = proven safe, `1` = needs human review, `2` = proven or flagged as a behavior change.
 
 ## Evaluation
 
-sqlsense is evaluated against real commit history, not hand-picked examples. The methodology (see `mining/`):
+provensql is evaluated against real commit history, not hand-picked examples. The methodology (see `mining/`):
 
 1. Mined 1,242 real `(before, after)` SQL pairs from commits that modified a `.sql` file across `mozilla/bigquery-etl`, `GoogleCloudPlatform/bigquery-utils`, and `dbt-labs/jaffle-shop-classic`.
 2. Auto-bucketed each pair by AST diff, then drew a 213-pair stratified sample.
-3. Hand-labeled all 213 pairs (`EQUIVALENT` / `DIFFERENT` / `SCHEMA_CHANGE` / `UNKNOWN`) — independently, without seeing sqlsense's own verdict.
+3. Hand-labeled all 213 pairs (`EQUIVALENT` / `DIFFERENT` / `SCHEMA_CHANGE` / `UNKNOWN`) — independently, without seeing provensql's own verdict.
 
 **Corpus finding:** 76% of real SQL edits are semantically consequential (`DIFFERENT` + `SCHEMA_CHANGE`), and every real `WHERE`/`HAVING` touch in the sample was substantive — a touched predicate was never just cosmetic. Full breakdown in `mining/`.
 
@@ -113,11 +113,11 @@ This is what an equivalence checker's evaluation should look like: high recall o
 
 Running the same pipeline across all **1,242** mined pairs (not just the labeled 213) is nearly identical: 10.1% coverage, still zero false `EQUIVALENT`. That near-match is itself a finding — the small sample was representative, so *sample size was never the bottleneck*. Nor is Stage 3's capability: its join-type-substitution, join-reordering, and `WHERE`/`ON` pushdown reasoning fired on **3 of 1,242 pairs**, all reserved-word quoting fixes; the join- and predicate-change buckets yielded **zero** proven-equivalent pairs, because those changes are genuine semantic edits, not the equivalence-preserving refactors Stage 3 proves. The ceiling is corpus composition: bigquery-etl is dominated by Jinja/scripting (Stage-0-rejected) and by real behavior changes. Exercising Stage 3's full range needs a refactor-heavy corpus (a dbt project's history, a SQL-formatter migration) — the reasoning is verified by the test suite regardless; this corpus just doesn't contain many cases that trigger it. Reproduce with `python mining/full_corpus_eval.py`.
 
-Two `DIFFERENT` verdicts in this run disagree with the human label of `EQUIVALENT`. Both are the same pattern: an upstream source column was renamed and re-aliased back to the same output name, and the human labeler knew from external context that the rename preserved the data. sqlsense, reasoning only from the query text, cannot assume two differently-named columns hold identical data — that's a defensible default, not unsoundness, but it's a real limitation worth knowing: sqlsense currently has no way to declare "these two column names are known-equivalent under a rename," which would be a reasonable catalog extension.
+Two `DIFFERENT` verdicts in this run disagree with the human label of `EQUIVALENT`. Both are the same pattern: an upstream source column was renamed and re-aliased back to the same output name, and the human labeler knew from external context that the rename preserved the data. provensql, reasoning only from the query text, cannot assume two differently-named columns hold identical data — that's a defensible default, not unsoundness, but it's a real limitation worth knowing: provensql currently has no way to declare "these two column names are known-equivalent under a rename," which would be a reasonable catalog extension.
 
 ### The comparison that motivated this project
 
-An LLM judge given the same pairs will confidently call classic traps equivalent: `LEFT JOIN` → `JOIN` with a nullable key, `COUNT(x)` → `COUNT(*)`, `NOT IN` vs `NOT EXISTS` on a nullable column. sqlsense either proves the divergence with a witness or honestly says it doesn't know. It never does the first thing.
+An LLM judge given the same pairs will confidently call classic traps equivalent: `LEFT JOIN` → `JOIN` with a nullable key, `COUNT(x)` → `COUNT(*)`, `NOT IN` vs `NOT EXISTS` on a nullable column. provensql either proves the divergence with a witness or honestly says it doesn't know. It never does the first thing.
 
 ## Corpus & licensing
 
@@ -131,7 +131,7 @@ The mining/labeling *tooling* in this repo (`mining/*.py`) is original code unde
 
 ## Contributing
 
-Issues and PRs welcome. If you're extending Stage 0's supported fragment or Stage 1's canonicalization rules, the one hard requirement is in `sqlsense/verdict.py`: no change should make it possible to emit `EQUIVALENT` without an accompanying proof. `tests/test_compare.py` and `tests/test_catalog.py` have the current soundness invariants under test — add to them, don't relax them.
+Issues and PRs welcome. If you're extending Stage 0's supported fragment or Stage 1's canonicalization rules, the one hard requirement is in `provensql/verdict.py`: no change should make it possible to emit `EQUIVALENT` without an accompanying proof. `tests/test_compare.py` and `tests/test_catalog.py` have the current soundness invariants under test — add to them, don't relax them.
 
 ## License
 

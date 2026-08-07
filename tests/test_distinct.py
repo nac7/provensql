@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from sqlsense import catalog as catalog_module
-from sqlsense.compare import compare
-from sqlsense.verdict import VerdictType
+from provensql import catalog as catalog_module
+from provensql.compare import compare
+from provensql.verdict import VerdictType
 
 
 def test_distinct_redundant_over_full_group_key_is_equivalent():

@@ -1,5 +1,5 @@
-from sqlsense.compare import compare
-from sqlsense.verdict import VerdictType
+from provensql.compare import compare
+from provensql.verdict import VerdictType
 
 
 def test_predicate_moved_from_where_to_on_is_equivalent():

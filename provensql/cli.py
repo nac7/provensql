@@ -2,9 +2,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from sqlsense import catalog as catalog_module
-from sqlsense.compare import compare
-from sqlsense.verdict import VerdictType
+from provensql import catalog as catalog_module
+from provensql.compare import compare
+from provensql.verdict import VerdictType
 
 # CI-friendly exit codes: 0 = proven safe, 1 = couldn't decide (needs human
 # review), 2 = proven/flagged as a behavior change.
@@ -17,7 +17,7 @@ EXIT_CODES = {
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="sqlsense")
+    ap = argparse.ArgumentParser(prog="provensql")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     diff = sub.add_parser("diff", help="compare two SQL files")

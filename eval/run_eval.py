@@ -1,10 +1,10 @@
 """
-Score sqlsense's compare() against the 213-pair hand-labeled ground truth
+Score provensql's compare() against the 213-pair hand-labeled ground truth
 (mining/output/labeled.jsonl).
 
 The number that matters most is soundness: how many times did the tool say
 EQUIVALENT when a human said DIFFERENT or SCHEMA_CHANGE? That number must
-be zero, forever -- see sqlsense/verdict.py for why. Coverage (how often
+be zero, forever -- see provensql/verdict.py for why. Coverage (how often
 the tool reaches a definitive verdict at all) is expected to be low in M1,
 since Stage 3 (proof) and Stage 4 (counterexample search) aren't built yet;
 every case that isn't a Stage-2 canonical match or a schema change falls
@@ -16,9 +16,9 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from sqlsense import catalog as catalog_module
-from sqlsense.compare import compare
-from sqlsense.verdict import VerdictType
+from provensql import catalog as catalog_module
+from provensql.compare import compare
+from provensql.verdict import VerdictType
 
 LABELED = Path(__file__).parent.parent / "mining" / "output" / "labeled.jsonl"
 
@@ -49,7 +49,7 @@ def main():
     n_decided = n - n_unknown
     n_unsound = len(unsound_examples)
 
-    print(f"=== sqlsense M1 eval ({n} pairs) ===\n")
+    print(f"=== provensql M1 eval ({n} pairs) ===\n")
 
     print("Tool verdict distribution:")
     for v, c in tool_verdicts.most_common():

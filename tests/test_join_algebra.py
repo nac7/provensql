@@ -1,9 +1,9 @@
 import tempfile
 from pathlib import Path
 
-from sqlsense import catalog as catalog_module
-from sqlsense.compare import compare
-from sqlsense.verdict import VerdictType
+from provensql import catalog as catalog_module
+from provensql.compare import compare
+from provensql.verdict import VerdictType
 
 FK_CATALOG_YAML = """
 tables:
@@ -117,8 +117,8 @@ def test_self_join_set_match_abstains_rather_than_guesses():
     # same table joined twice (self-join) collides in the table-name-keyed
     # dict the set-match path uses -- it must abstain (return no match)
     # rather than pick an arbitrary pairing and risk a wrong verdict.
-    from sqlsense.canonicalize import canonicalize, parse
-    from sqlsense.join_algebra import equivalent as join_equivalent
+    from provensql.canonicalize import canonicalize, parse
+    from provensql.join_algebra import equivalent as join_equivalent
 
     base = canonicalize(parse(
         "SELECT a.x FROM t1 JOIN t2 AS a ON t1.id = a.id JOIN t2 AS b ON t1.id2 = b.id"

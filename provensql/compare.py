@@ -12,17 +12,17 @@ fall through to UNKNOWN with a reason code -- undercoverage there is
 correct behavior, never a wrong answer.
 """
 
-from sqlsense.canonicalize import (
+from provensql.canonicalize import (
     UnsupportedConstruct,
     canonical_string,
     canonicalize,
     output_schema,
     parse,
 )
-from sqlsense.catalog import Catalog
-from sqlsense.counterexample import format_witness, search as search_counterexample
-from sqlsense.stage3 import prove_equivalent
-from sqlsense.verdict import Verdict
+from provensql.catalog import Catalog
+from provensql.counterexample import format_witness, search as search_counterexample
+from provensql.stage3 import prove_equivalent
+from provensql.verdict import Verdict
 
 NO_CATALOG_ASSUMPTION = (
     "no catalog supplied -- witness assumes no NOT NULL/UNIQUE/FK constraints "

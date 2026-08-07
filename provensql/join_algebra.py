@@ -40,8 +40,8 @@ from dataclasses import dataclass
 
 from sqlglot import exp
 
-from sqlsense import catalog as catalog_module
-from sqlsense.smt import expressions_equivalent
+from provensql import catalog as catalog_module
+from provensql.smt import expressions_equivalent
 
 
 class NotAnalyzable(Exception):

@@ -1,5 +1,5 @@
 """
-sqlsense mining harness -- Stage C: stratified sample for hand-labeling.
+provensql mining harness -- Stage C: stratified sample for hand-labeling.
 
 Takes the classified.jsonl (output of classify_pairs.py) and pulls a
 stratified sample across buckets so the ~150-200 hand-labeled pairs cover

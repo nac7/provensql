@@ -1,5 +1,5 @@
 """
-Run the current sqlsense pipeline across the ENTIRE mined corpus (not just
+Run the current provensql pipeline across the ENTIRE mined corpus (not just
 the hand-labeled 213-pair sample) to answer one question with evidence:
 do Stage 3's capabilities actually fire more broadly than the small sample
 showed, or is the low coverage a real ceiling?
@@ -20,9 +20,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlsense import catalog as catalog_module
-from sqlsense.compare import compare
-from sqlsense.verdict import VerdictType
+from provensql import catalog as catalog_module
+from provensql.compare import compare
+from provensql.verdict import VerdictType
 
 CLASSIFIED = Path(__file__).parent / "output" / "classified.jsonl"
 CATALOG = Path(__file__).parent / "output" / "udf_catalog.yml"

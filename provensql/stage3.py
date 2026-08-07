@@ -29,13 +29,13 @@ cheapest first:
 
 from sqlglot import exp
 
-from sqlsense import catalog as catalog_module
-from sqlsense import join_algebra
-from sqlsense import pushdown
-from sqlsense import schema_infer as si
-from sqlsense import skeleton
-from sqlsense.smt import build_column_vars, expressions_equivalent
-from sqlsense.verdict import Verdict
+from provensql import catalog as catalog_module
+from provensql import join_algebra
+from provensql import pushdown
+from provensql import schema_infer as si
+from provensql import skeleton
+from provensql.smt import build_column_vars, expressions_equivalent
+from provensql.verdict import Verdict
 
 SMT_ASSUMPTION = (
     "SMT proof covers WHERE/HAVING/SELECT-list scalar expressions only; column types "

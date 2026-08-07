@@ -1,6 +1,6 @@
 """
 Mines real UDF names out of mozilla/bigquery-etl's own repo structure and
-writes a udfs-only sqlsense catalog.yml. This isn't guesswork: bigquery-etl
+writes a udfs-only provensql catalog.yml. This isn't guesswork: bigquery-etl
 publishes each UDF as its own file at a fixed path convention
 (sql/mozfun/<namespace>/<func>/udf.sql or sql/moz-fx-data-shared-prod/udf(_js)/<func>/udf.sql),
 so the directory listing IS the UDF registry. Queries reference these

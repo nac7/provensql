@@ -1,7 +1,7 @@
 """
-Verdict types for sqlsense.
+Verdict types for provensql.
 
-The core soundness rule of the whole project: sqlsense must never claim two
+The core soundness rule of the whole project: provensql must never claim two
 queries are EQUIVALENT unless it has actually proven that, for every
 database instance, they return the same result. Testing (counterexample
 search) can disprove equivalence but can never prove it -- so the DIFFERENT
@@ -15,7 +15,7 @@ called without a non-empty witness, so a future shortcut ("just return
 DIFFERENT because the canonical forms differ") fails loudly instead of
 silently degrading the guarantee. Note the witness is only a proof relative
 to the *inferred* schema (see schema_infer.py) -- without a real catalog,
-sqlsense doesn't know about NOT NULL/UNIQUE/FK constraints the production
+provensql doesn't know about NOT NULL/UNIQUE/FK constraints the production
 tables might actually have, so every DIFFERENT verdict states that
 assumption explicitly.
 """

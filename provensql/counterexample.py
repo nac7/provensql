@@ -14,10 +14,10 @@ from collections import Counter
 import duckdb
 from sqlglot import exp
 
-from sqlsense import catalog as catalog_module
-from sqlsense import data_gen, execute
-from sqlsense import schema_infer as si
-from sqlsense import udf_rewrite
+from provensql import catalog as catalog_module
+from provensql import data_gen, execute
+from provensql import schema_infer as si
+from provensql import udf_rewrite
 
 MAX_INSTANCES = 20
 

@@ -2,7 +2,7 @@
 Optional user-supplied catalog: real column types and known UDF names,
 loaded from a YAML file.
 
-Without a catalog, sqlsense guesses column types from how the query uses
+Without a catalog, provensql guesses column types from how the query uses
 them (schema_infer.py) and refuses to execute any query calling a function
 it doesn't recognize. A catalog is ground truth where it's provided: it
 overrides the heuristic type guess for any table it covers, and its UDF
@@ -46,7 +46,7 @@ from pathlib import Path
 
 import yaml
 
-from sqlsense import schema_infer as si
+from provensql import schema_infer as si
 
 _BQ_TYPE_MAP = {
     "STRING": si.VARCHAR,

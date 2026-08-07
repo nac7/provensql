@@ -27,9 +27,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlglot import exp
 
-from sqlsense.canonicalize import UnsupportedConstruct, parse
-from sqlsense.compare import compare
-from sqlsense.verdict import VerdictType
+from provensql.canonicalize import UnsupportedConstruct, parse
+from provensql.compare import compare
+from provensql.verdict import VerdictType
 
 CLASSIFIED = Path(__file__).parent / "output" / "classified.jsonl"
 

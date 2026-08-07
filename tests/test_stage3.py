@@ -1,5 +1,5 @@
-from sqlsense.compare import compare
-from sqlsense.verdict import VerdictType
+from provensql.compare import compare
+from provensql.verdict import VerdictType
 
 
 def test_de_morgan_predicate_rewrite_is_equivalent():

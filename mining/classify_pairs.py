@@ -1,5 +1,5 @@
 """
-sqlsense mining harness -- Stage B: parse + auto-bucket (base, head) pairs.
+provensql mining harness -- Stage B: parse + auto-bucket (base, head) pairs.
 
 Reads the jsonl produced by extract_pairs.py, parses both sides with
 sqlglot(dialect="bigquery"), and buckets each pair into a coarse change-type

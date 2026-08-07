@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sqlsense"
+name = "provensql"
 version = "0.1.0"
 description = "Sound-by-construction semantic diff for SQL: know whether a query edit changes the answer."
 readme = "README.md"
@@ -29,10 +29,10 @@ dependencies = [
 dev = ["pytest>=8.0.0"]
 
 [project.urls]
-Repository = "https://github.com/nac7/sqlsense"
+Repository = "https://github.com/nac7/provensql"
 
 [project.scripts]
-sqlsense = "sqlsense.cli:main"
+provensql = "provensql.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["sqlsense*"]
+include = ["provensql*"]

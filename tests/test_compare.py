@@ -1,7 +1,7 @@
 import pytest
 
-from sqlsense.compare import compare
-from sqlsense.verdict import VerdictType
+from provensql.compare import compare
+from provensql.verdict import VerdictType
 
 
 def test_formatting_only_is_equivalent():
@@ -52,7 +52,7 @@ def test_parse_error_is_unknown():
 
 
 def test_different_requires_a_witness():
-    from sqlsense.verdict import Verdict
+    from provensql.verdict import Verdict
 
     with pytest.raises(ValueError):
         Verdict.different("some reason", witness="")

@@ -13,7 +13,7 @@ for the same reason."""
 
 from sqlglot import exp
 
-from sqlsense import schema_infer as si
+from provensql import schema_infer as si
 
 _DUCK_TYPE = {
     si.NUMERIC: "DOUBLE",
@@ -52,8 +52,8 @@ def load_instance(con, table_schemas: dict, instance: dict) -> None:
         else:
             # a referenced table with no inferred columns (e.g. only used via
             # SELECT *) -- give it one throwaway column so CREATE TABLE is valid
-            col_defs = '"_sqlsense_placeholder" VARCHAR'
-            col_names = ["_sqlsense_placeholder"]
+            col_defs = '"_provensql_placeholder" VARCHAR'
+            col_names = ["_provensql_placeholder"]
         con.execute(f'CREATE OR REPLACE TABLE "{table}" ({col_defs})')
 
         rows = instance.get(table, [])

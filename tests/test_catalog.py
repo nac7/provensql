@@ -1,9 +1,9 @@
 import tempfile
 from pathlib import Path
 
-from sqlsense import catalog as catalog_module
-from sqlsense.compare import compare
-from sqlsense.verdict import VerdictType
+from provensql import catalog as catalog_module
+from provensql.compare import compare
+from provensql.verdict import VerdictType
 
 CATALOG_YAML = """
 udfs:

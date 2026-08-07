@@ -21,7 +21,7 @@ from dataclasses import dataclass
 import z3
 from sqlglot import exp
 
-from sqlsense import schema_infer as si
+from provensql import schema_infer as si
 
 
 class Undecidable(Exception):
