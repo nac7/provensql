@@ -101,8 +101,9 @@ The natural corpus barely exercises Stage 3 (see below), so its refactor-handlin
 | Double negation | 94% | Stage 2 + 3 |
 | `WHERE`→`ON` pushdown (inner joins) | **100%** | Stage 3 |
 | Reorder inner-join chain | **75%** | Stage 3 |
+| Redundant `DISTINCT` elimination | **88%** | Stage 3 |
 
-**Equivalence-breaking mutations (soundness — must NEVER be `EQUIVALENT`):** across 238 mutations (flip a comparison operator, bump a literal, drop a conjunct), **zero** were wrongly certified equivalent — they land on `DIFFERENT` (with a witness) or `UNKNOWN`.
+**Equivalence-breaking mutations (soundness — must NEVER be `EQUIVALENT`):** across 511 mutations (flip a comparison operator, bump a literal, drop a conjunct, add a deduplicating `DISTINCT`), **zero** were wrongly certified equivalent — they land on `DIFFERENT` (with a witness) or `UNKNOWN`.
 
 This is what an equivalence checker's evaluation should look like: high recall on the rewrite classes it targets, and a hard zero on the adversarial cases. It also caught a real limitation — Stage 3 was abstaining whenever any *unchanged* expression used a function outside the SMT fragment (`TIMESTAMP_DIFF` etc.), fixed by a sound "structurally identical expressions are trivially equivalent" fast path.
 

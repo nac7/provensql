@@ -51,6 +51,43 @@ def _predicate(where_or_having) -> exp.Expression:
     return where_or_having.this if where_or_having is not None else exp.true()
 
 
+def _distinct_redundant(tree: exp.Select, catalog) -> tuple[bool, str | None]:
+    """Is this SELECT's DISTINCT provably a no-op (the rows are already
+    distinct without it)? Returns (redundant, assumption). Only ever called
+    on the side that HAS a DISTINCT."""
+    projected = [_unalias(e) for e in tree.expressions]
+    if any(isinstance(e, exp.Star) or getattr(e, "is_star", False) for e in projected):
+        return False, None  # SELECT DISTINCT * -- can't reason without the full column list
+
+    # Rule A (no catalog needed): a GROUP BY produces exactly one row per
+    # distinct group-key tuple. If every group key is present in the
+    # projection, then distinct groups yield distinct output rows, so
+    # DISTINCT adds nothing. (The reverse subset does NOT hold: projecting a
+    # strict subset of the group keys -- SELECT DISTINCT a ... GROUP BY a, b
+    # -- genuinely deduplicates, since one `a` can span many `b` groups.)
+    group = tree.args.get("group")
+    if group and group.expressions:
+        projected_keys = {e.sql(dialect="bigquery", normalize=True) for e in projected}
+        group_keys = [g.sql(dialect="bigquery", normalize=True) for g in group.expressions]
+        if all(g in projected_keys for g in group_keys):
+            return True, None
+
+    # Rule B (catalog): a projected column declared UNIQUE means every row is
+    # already distinct.
+    if catalog is not None:
+        for e in projected:
+            if isinstance(e, exp.Column) and catalog.is_unique(e.table, e.name):
+                return True, f"{e.table}.{e.name} is UNIQUE per catalog, so DISTINCT is redundant"
+
+    return False, None
+
+
+def _strip_distinct(tree: exp.Select) -> exp.Select:
+    t = tree.copy()
+    t.set("distinct", None)
+    return t
+
+
 def _where_matches(base_tree, head_tree, column_vars) -> bool:
     return expressions_equivalent(
         _predicate(base_tree.args.get("where")), _predicate(head_tree.args.get("where")), column_vars
@@ -80,6 +117,22 @@ def prove_equivalent(
 ) -> Verdict | None:
     if not (isinstance(base_tree, exp.Select) and isinstance(head_tree, exp.Select)):
         return None
+
+    # If one side has DISTINCT and the other doesn't, that's only a no-op
+    # refactor when the DISTINCT is provably redundant; otherwise it changes
+    # results (deduplication) and we must not treat the two as equivalent.
+    distinct_assumptions: list[str] = []
+    base_distinct = base_tree.args.get("distinct") is not None
+    head_distinct = head_tree.args.get("distinct") is not None
+    if base_distinct != head_distinct:
+        bearer = base_tree if base_distinct else head_tree
+        redundant, assumption = _distinct_redundant(bearer, catalog)
+        if not redundant:
+            return None
+        if assumption:
+            distinct_assumptions.append(assumption)
+        base_tree = _strip_distinct(base_tree)
+        head_tree = _strip_distinct(head_tree)
 
     base_skel_sans_joins = skeleton.skeleton_signature_sans_joins(base_tree)
     head_skel_sans_joins = skeleton.skeleton_signature_sans_joins(head_tree)
@@ -116,7 +169,7 @@ def prove_equivalent(
     except Exception:
         return None  # any internal failure abstains -- never guess
 
-    assumptions = (SMT_ASSUMPTION, *join_assumptions)
+    assumptions = (SMT_ASSUMPTION, *join_assumptions, *distinct_assumptions)
     return Verdict.equivalent(
         "SMT-proved: relational skeleton matched (exactly, via a justified join-type "
         "substitution, or via WHERE/ON predicate pushdown for an all-INNER join), all "

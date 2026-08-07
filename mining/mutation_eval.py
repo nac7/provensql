@@ -144,6 +144,37 @@ def m_bump_literal(tree):
     return None
 
 
+def m_add_redundant_distinct(tree):
+    # Adding DISTINCT to a query that GROUP BYs and projects every group key
+    # is a no-op -- the rows are already distinct.
+    group = tree.args.get("group")
+    if tree.args.get("distinct") is not None or not (group and group.expressions):
+        return None
+    projected = {(_unalias_e(e)).sql(dialect="bigquery", normalize=True) for e in tree.expressions}
+    group_keys = [g.sql(dialect="bigquery", normalize=True) for g in group.expressions]
+    if not all(g in projected for g in group_keys):
+        return None
+    t = tree.copy()
+    t.set("distinct", exp.Distinct())
+    return t.sql(dialect="bigquery")
+
+
+def m_add_deduplicating_distinct(tree):
+    # Adding DISTINCT to a plain SELECT with no GROUP BY genuinely changes
+    # results (it removes duplicate rows) -- must never be called EQUIVALENT.
+    if tree.args.get("distinct") is not None or tree.args.get("group") is not None:
+        return None
+    if not tree.expressions:
+        return None
+    t = tree.copy()
+    t.set("distinct", exp.Distinct())
+    return t.sql(dialect="bigquery")
+
+
+def _unalias_e(node):
+    return node.this if isinstance(node, exp.Alias) else node
+
+
 def m_drop_conjunct(tree):
     pred = _where_pred(tree)
     if not isinstance(pred, exp.And):
@@ -159,11 +190,13 @@ PRESERVING = [
     ("double_negate", m_double_negate),
     ("push_where_to_on", m_push_where_to_on),
     ("reorder_inner_joins", m_reorder_inner_joins),
+    ("add_redundant_distinct", m_add_redundant_distinct),
 ]
 BREAKING = [
     ("flip_comparison", m_flip_comparison),
     ("bump_literal", m_bump_literal),
     ("drop_conjunct", m_drop_conjunct),
+    ("add_deduplicating_distinct", m_add_deduplicating_distinct),
 ]
 
 
