@@ -126,6 +126,27 @@ to classic traps: `LEFT JOIN`→`JOIN` on a nullable key, `COUNT(x)`→`COUNT(*)
 without accounting for NULL. provensql either proves the divergence with a
 concrete witness or says `UNKNOWN`. It never guesses "equivalent."
 
+### Baselines (`python eval/baselines.py`)
+
+Three obvious alternatives, scored on the same 213 pairs, reporting the one
+metric that matters — false-`EQUIVALENT` count (said equivalent when the
+human label was `DIFFERENT`/`SCHEMA_CHANGE`), against provensql's **0**:
+
+| Baseline | False `EQUIVALENT` | Note |
+|---|---|---|
+| String equality | 0 | Calls *every* pair `DIFFERENT` (they're real diffs) — never recognizes a true equivalence; accuracy 40.8% |
+| `sqlglot`-normalized string compare | 0 | Same — naive normalization catches none of the 213, so its clean soundness is vacuous |
+| LLM judge (Claude/GPT) | *run it* | Needs an API key + billed calls; this is the case that produces false positives |
+
+The two trivial baselines score a clean zero only because they never claim
+equivalence at all — their soundness is an artifact of refusing to play, not
+a real result. The LLM judge is the one that *does* claim equivalence
+liberally and gets some wrong; the harness runs it (`--model`, `--limit`)
+so the false-`EQUIVALENT` rate can be measured directly against provensql's
+zero. The point isn't that provensql is more cautious than an LLM — the
+trivial baselines are trivially cautious too — it's that provensql claims
+equivalence on real cases *and* is never wrong when it does.
+
 ## 4. What the process caught
 
 The evaluation harness is not decoration — it has repeatedly caught real
