@@ -286,6 +286,17 @@ def expressions_equivalent(base_node: exp.Expression, head_node: exp.Expression,
     or both NULL) for every possible assignment. False covers both "found a
     counterexample" and "gave up (Undecidable/timeout)" -- Stage 3 only ever
     acts on the True case, so collapsing those is safe."""
+    # Fast path: structurally identical expressions are trivially equivalent.
+    # This is sound because Stage 0 already rejects any query containing a
+    # nondeterministic function, so "same text" really does mean "same value"
+    # here. It matters a lot in practice: it lets Stage 3 succeed when the
+    # *changed* part of a query is in the SMT fragment even though some
+    # *unchanged* expression uses a function the encoder doesn't model
+    # (TIMESTAMP_DIFF, DATE_TRUNC, ...) -- without it, one unsupported
+    # function anywhere in the SELECT list blocks the whole proof.
+    if base_node.sql(dialect="bigquery", normalize=True) == head_node.sql(dialect="bigquery", normalize=True):
+        return True
+
     opaque: dict = {}
     try:
         b = compile_expr(base_node, column_vars, opaque)

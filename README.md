@@ -88,6 +88,24 @@ sqlsense is evaluated against real commit history, not hand-picked examples. The
 
 Coverage is low, and that's the honest, expected shape of where this stands: most of the corpus never reaches Stage 3 or 4 at all, rejected at Stage 0 for constructs genuinely out of v0's scope (Jinja templating, BigQuery scripting, window functions). Of what does get through, Stage 3 adds real but modest coverage on top of Stage 2/4 — one additional real production query (a reserved-word backtick-quoting fix) proven equivalent by SMT where exact canonical matching didn't catch it. Small movement, honestly reported. Soundness — the number that actually matters — is clean throughout.
 
+### Mutation testing: does Stage 3 actually work?
+
+The natural corpus barely exercises Stage 3 (see below), so its refactor-handling is measured the rigorous way instead — apply transformations whose ground-truth answer is known by construction to 421 real single-SELECT queries, via `python mining/mutation_eval.py`:
+
+**Equivalence-preserving rewrites (recall — want `EQUIVALENT`):**
+
+| Rewrite | Recall | Resolved by |
+|---|---|---|
+| Reorder `WHERE` conjuncts | 97% | Stage 2 |
+| Swap `=` operands | 88% | Stage 2 |
+| Double negation | 94% | Stage 2 + 3 |
+| `WHERE`→`ON` pushdown (inner joins) | **100%** | Stage 3 |
+| Reorder inner-join chain | **75%** | Stage 3 |
+
+**Equivalence-breaking mutations (soundness — must NEVER be `EQUIVALENT`):** across 238 mutations (flip a comparison operator, bump a literal, drop a conjunct), **zero** were wrongly certified equivalent — they land on `DIFFERENT` (with a witness) or `UNKNOWN`.
+
+This is what an equivalence checker's evaluation should look like: high recall on the rewrite classes it targets, and a hard zero on the adversarial cases. It also caught a real limitation — Stage 3 was abstaining whenever any *unchanged* expression used a function outside the SMT fragment (`TIMESTAMP_DIFF` etc.), fixed by a sound "structurally identical expressions are trivially equivalent" fast path.
+
 ### What the full corpus says about where the ceiling is
 
 Running the same pipeline across all **1,242** mined pairs (not just the labeled 213) is nearly identical: 10.1% coverage, still zero false `EQUIVALENT`. That near-match is itself a finding — the small sample was representative, so *sample size was never the bottleneck*. Nor is Stage 3's capability: its join-type-substitution, join-reordering, and `WHERE`/`ON` pushdown reasoning fired on **3 of 1,242 pairs**, all reserved-word quoting fixes; the join- and predicate-change buckets yielded **zero** proven-equivalent pairs, because those changes are genuine semantic edits, not the equivalence-preserving refactors Stage 3 proves. The ceiling is corpus composition: bigquery-etl is dominated by Jinja/scripting (Stage-0-rejected) and by real behavior changes. Exercising Stage 3's full range needs a refactor-heavy corpus (a dbt project's history, a SQL-formatter migration) — the reasoning is verified by the test suite regardless; this corpus just doesn't contain many cases that trigger it. Reproduce with `python mining/full_corpus_eval.py`.
