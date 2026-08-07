@@ -72,6 +72,8 @@ Exit codes are CI-friendly: `0` = proven safe, `1` = needs human review, `2` = p
 
 ## Evaluation
 
+> Full methodology, results, and honest limitations: **[docs/evaluation.md](docs/evaluation.md)**.
+
 provensql is evaluated against real commit history, not hand-picked examples. The methodology (see `mining/`):
 
 1. Mined 1,242 real `(before, after)` SQL pairs from commits that modified a `.sql` file across `mozilla/bigquery-etl`, `GoogleCloudPlatform/bigquery-utils`, and `dbt-labs/jaffle-shop-classic`.
