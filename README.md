@@ -1,6 +1,7 @@
 # provensql
 
 [![CI](https://github.com/nac7/provensql/actions/workflows/ci.yml/badge.svg)](https://github.com/nac7/provensql/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/provensql)](https://pypi.org/project/provensql/)
 
 **Sound-by-construction semantic diff for SQL.** Given two versions of a query, provensql tells you whether the edit could change the answer — and it is built so that it can never wrongly tell you "no change" when there was one.
 
@@ -64,9 +65,11 @@ Catalog-declared UDFs get a deterministic stand-in registered in DuckDB (see `pr
 ## Install
 
 ```
-pip install -e .
+pip install provensql
 provensql diff base.sql head.sql [--catalog schema.yml]
 ```
+
+(Or `pip install -e ".[dev]"` from a clone to run the test suite.)
 
 Exit codes are CI-friendly: `0` = proven safe, `1` = needs human review, `2` = proven or flagged as a behavior change.
 
