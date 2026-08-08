@@ -448,22 +448,27 @@ It is zero, and it is meant to stay zero.
 
 ## References
 
-- [1] Chu, Weitz, Cheung, Suciu. *HoTTSQL: Proving Query Rewrites with Univalent
-  SQL Semantics.* PLDI 2017. (See also Chu et al., *Cosette*, CIDR 2017.)
-- [2] Zhou, Arulraj, Navathe, Harris, Zhang. *Automated Verification of Query
-  Equivalence Using Satisfiability Modulo Theories* (EQUITAS). PVLDB 12(11),
-  2019.
-- [3] Zhou, Arulraj, Navathe, Harris, Wu. *SPES: A Symbolic Approach to Proving
-  Query Equivalence Under Bag Semantics.* ICDE 2022.
-- [4] Wang et al. *WeTune: Automatic Discovery and Verification of Query Rewrite
-  Rules.* SIGMOD 2022.
-- [5] Wang, Pan, Cheung. *QED: A Powerful Query Equivalence Decider for SQL.*
-  PVLDB 17(11), 2024.
-- [6] *VeriEQL: Bounded Equivalence Verification for Complex SQL Queries with
-  Integrity Constraints.* PACMPL (OOPSLA) 2024. arXiv:2403.03193.
-- [7] *Polygon: Symbolic Reasoning for SQL using Conflict-Driven
-  Under-Approximation Search.* 2025. arXiv:2504.06542.
-- [8] *Proving Query Equivalence Using Linear Integer Arithmetic.* PACMMOD 2023.
-
-*(Author lists for [4],[6],[7] and exact page numbers to be completed against
-the source venues before submission.)*
+- [1] Shumo Chu, Konstantin Weitz, Alvin Cheung, Dan Suciu. *HoTTSQL: Proving
+  Query Rewrites with Univalent SQL Semantics.* PLDI 2017. (See also Shumo Chu,
+  Chenglong Wang, Konstantin Weitz, Alvin Cheung. *Cosette: An Automated Prover
+  for SQL.* CIDR 2017.)
+- [2] Qi Zhou, Joy Arulraj, Shamkant Navathe, William Harris, Danfeng Zhang.
+  *Automated Verification of Query Equivalence Using Satisfiability Modulo
+  Theories* (EQUITAS). PVLDB 12(11):1276–1288, 2019.
+- [3] Qi Zhou, Joy Arulraj, Shamkant B. Navathe, William Harris, Jinpeng Wu.
+  *SPES: A Symbolic Approach to Proving Query Equivalence Under Bag Semantics.*
+  ICDE 2022.
+- [4] Zhaoguo Wang, Zhou Zhou, Yicun Yang, Haoran Ding, Gansen Hu, Ding Ding,
+  Chuzhe Tang, Haibo Chen, Jinyang Li. *WeTune: Automatic Discovery and
+  Verification of Query Rewrite Rules.* SIGMOD 2022, pp. 94–107.
+- [5] Shuxian Wang, Sicheng Pan, Alvin Cheung. *QED: A Powerful Query
+  Equivalence Decider for SQL.* PVLDB 17(11):3602–3614, 2024.
+- [6] Yang He, Pinhan Zhao, Xinyu Wang, Yuepeng Wang. *VeriEQL: Bounded
+  Equivalence Verification for Complex SQL Queries with Integrity Constraints.*
+  PACMPL (OOPSLA) 2024. arXiv:2403.03193.
+- [7] Pinhan Zhao, Yuepeng Wang, Xinyu Wang. *Polygon: Symbolic Reasoning for
+  SQL using Conflict-Driven Under-Approximation Search.* PLDI 2025.
+  arXiv:2504.06542.
+- [8] Haoran Ding, Zhaoguo Wang, Yicun Yang, Dexin Zhang, Zhenglin Xu, Haibo
+  Chen, Ruzica Piskac, Jinyang Li. *Proving Query Equivalence Using Linear
+  Integer Arithmetic.* PACMMOD (Proc. ACM Manag. Data) 1(4):227:1–227:26, 2023.
