@@ -1,0 +1,40 @@
+name: "provensql SQL edit-safety"
+description: "Fail the build when a SQL edit could change query results — a sound check with executable counterexample witnesses."
+branding:
+  icon: "check-circle"
+  color: "blue"
+inputs:
+  base-ref:
+    description: "Git ref to diff against. Defaults to the PR base branch (origin/<base_ref>) or origin/main."
+    default: ""
+  catalog:
+    description: "Path to a provensql catalog YAML for constraint-aware proofs (optional)."
+    default: ""
+  fail-on-unknown:
+    description: "Also fail the build when a verdict is UNKNOWN (default: warn only)."
+    default: "false"
+  python-version:
+    description: "Python version to run provensql on."
+    default: "3.12"
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - shell: bash
+      run: pip install provensql
+    - shell: bash
+      run: |
+        set -euo pipefail
+        BASE="${{ inputs.base-ref }}"
+        if [ -z "$BASE" ]; then
+          REF="${{ github.base_ref }}"
+          [ -z "$REF" ] && REF="main"
+          git fetch --no-tags --depth=1 origin "$REF" || true
+          BASE="origin/$REF"
+        fi
+        ARGS="--base $BASE"
+        [ -n "${{ inputs.catalog }}" ] && ARGS="$ARGS --catalog ${{ inputs.catalog }}"
+        [ "${{ inputs.fail-on-unknown }}" = "true" ] && ARGS="$ARGS --fail-on-unknown"
+        python "${{ github.action_path }}/scripts/pr_check.py" $ARGS

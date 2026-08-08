@@ -87,6 +87,18 @@ provensql diff base.sql head.sql [--catalog schema.yml] [--json]
 
 Exit codes are CI-friendly: `0` = proven safe, `1` = needs human review, `2` = proven or flagged as a behavior change. `--json` emits a machine-checkable audit certificate (verdict, reason, assumptions, and — for `DIFFERENT` — the replayable witness) for archival or PR automation.
 
+### Gate pull requests
+
+Drop-in GitHub Action that fails a PR when a SQL edit could change results:
+
+```yaml
+- uses: actions/checkout@v4
+  with: { fetch-depth: 0 }
+- uses: nac7/provensql@v0.1.1
+```
+
+Also works as a pre-commit hook. Full setup (Action, plain workflow, pre-commit): **[docs/ci_integration.md](docs/ci_integration.md)**.
+
 ## Evaluation
 
 > Full methodology, results, and honest limitations: **[docs/evaluation.md](docs/evaluation.md)**.
