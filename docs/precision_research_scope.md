@@ -97,7 +97,14 @@ preserve the value/NULL/ERROR outcome).
   `tests/test_precision.py`, incl. the headline contrast: the exact-real Stage 3
   proves `(a+b)+c == a+(b+c)` EQUIVALENT while the prototype flags it DIVERGENT.
   Default sort is Float32 for tractability (Float64 behind the timeout).
-- **M2** — the value/NULL/ERROR lattice and error-equivalence.
+- **M2 — DONE (prototype).** The value/NULL/ERROR lattice in
+  `provensql/error_semantics.py` (standalone; values over exact reals since the
+  milestone is about *outcomes*, not rounding). Div-by-zero, NULL propagation,
+  `SAFE_DIVIDE`, and `NULLIF` are modeled; `a/b` vs `SAFE_DIVIDE(a,b)` is
+  DIFFERENT (ERROR vs NULL at a zero divisor, with witness), while
+  `a/NULLIF(b,0)` vs `SAFE_DIVIDE(a,b)` proves EQUIVALENT_ERR. Proving is
+  tractable here (real arithmetic), unlike the float case. Tests in
+  `tests/test_error_semantics.py`.
 - **M3** — the optimizer-rule audit; triage and confirm any unsound rules.
 - **M4** — formal write-up: the typed encoding, per-rule soundness statements,
   and the empirical audit.
