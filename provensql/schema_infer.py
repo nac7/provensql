@@ -82,8 +82,12 @@ def infer(trees: list[exp.Expression]) -> dict[str, dict[str, dict]]:
     for tree in trees:
         for col in tree.find_all(exp.Column):
             table, name = col.table, col.name
-            if not table or not name:
+            if not name:
                 continue
+            # Unqualified columns (table == "") are registered too: qualify()
+            # is best-effort without a catalog and often leaves HAVING/WHERE
+            # columns bare, and those occurrences carry real type hints
+            # (e.g. `k > 0`). They're folded into the qualified column below.
             entry = ensure(table, name)
             parent = col.parent
 
@@ -110,6 +114,19 @@ def infer(trees: list[exp.Expression]) -> dict[str, dict[str, dict]]:
 
             if isinstance(parent, _ARITHMETIC):
                 set_type(entry, NUMERIC)
+
+    # Fold hints from unqualified occurrences into the qualified column of the
+    # same name, when that name belongs to exactly one table (unambiguous).
+    # Ambiguous or unplaceable bare columns are dropped -- Stage 3 then
+    # abstains on them, which is sound.
+    unqualified = info.pop("", {})
+    for name, u_entry in unqualified.items():
+        holders = [t for t in info if name in info[t]]
+        if len(holders) == 1:
+            target = info[holders[0]][name]
+            target["literals"] |= u_entry["literals"]
+            if target["type"] is None:
+                target["type"] = u_entry["type"]
 
     for cols in info.values():
         for entry in cols.values():

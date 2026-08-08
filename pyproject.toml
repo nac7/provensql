@@ -18,11 +18,15 @@ classifiers = [
     "Topic :: Database",
     "Topic :: Software Development :: Quality Assurance",
 ]
+# Upper bounds prevent silent verdict drift: sqlglot's canonicalization can
+# change between majors, which would change Stage 1/2 results and make the
+# published eval numbers non-reproducible. Measured on sqlglot 30.14.0,
+# duckdb 1.5.5, z3-solver 5.0.0.0.
 dependencies = [
-    "sqlglot>=25.0.0",
-    "duckdb>=1.0.0",
-    "pyyaml>=6.0",
-    "z3-solver>=4.13.0",
+    "sqlglot>=30.0,<31",
+    "duckdb>=1.5,<2",
+    "pyyaml>=6.0,<7",
+    "z3-solver>=4.13,<6",
 ]
 
 [project.optional-dependencies]

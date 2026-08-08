@@ -153,6 +153,17 @@ The evaluation harness is not decoration — it has repeatedly caught real
 defects before they shipped, which is the strongest evidence it measures
 something real:
 
+- **A live false `EQUIVALENT` via a dependency bug.** The trust-boundary
+  test (`test_simplify_faithful.py`) differentially checks the one external
+  transform Stage 1 trusted — sqlglot's `simplify()` — against DuckDB, and
+  found it collapsing `CASE WHEN flag THEN b WHEN TRUE THEN 2 ELSE 0 END` to
+  `2` (silently dropping the earlier branch). Because `canonicalize()` ran
+  `simplify()` and Stage 2 asserts `EQUIVALENT` on a canonical-string match,
+  this produced a real false `EQUIVALENT` in the pipeline (`compare(CASE…, 2)`
+  returned `EQUIVALENT`). Fixed by removing `simplify()` from the pipeline
+  entirely — canonicalization now applies only qualification plus rendering,
+  both semantics-preserving; the equivalences `simplify()` used to catch move
+  to the SMT-validated Stage 3. Zero coverage cost on the real corpus.
 - **Identical-expression abstention.** Stage 3 abstained whenever *any*
   expression used a function outside the SMT fragment, even when that
   expression was unchanged and only some other part of the query differed.

@@ -86,3 +86,14 @@ def test_having_rewrite_is_equivalent():
         "SELECT k, COUNT(*) AS n FROM t GROUP BY k HAVING k > 0 AND COUNT(*) > 1",
     )
     assert v.type == VerdictType.EQUIVALENT
+
+
+def test_safe_divide_refactor_is_not_falsely_equivalent():
+    # `a / b` errors at b == 0 in real SQL; the guarded form yields NULL.
+    # They are NOT equivalent, and division is not modeled, so Stage 3 must
+    # abstain -- never certify EQUIVALENT.
+    v = compare(
+        "SELECT a / b AS y FROM t",
+        "SELECT CASE WHEN b <> 0 THEN a / b END AS y FROM t",
+    )
+    assert v.type != VerdictType.EQUIVALENT

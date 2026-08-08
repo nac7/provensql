@@ -53,7 +53,7 @@ def compare(base_sql: str, head_sql: str, catalog: Catalog | None = None) -> Ver
 
     if base_str == head_str:
         return Verdict.equivalent(
-            "canonical forms identical after qualify + constant-fold/simplify + normalize",
+            "canonical forms identical after qualify + normalize",
             assumptions=(
                 "qualify() is best-effort without a real catalog; identifiers may be "
                 "left unqualified if resolution failed",

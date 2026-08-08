@@ -137,6 +137,20 @@ def _arith(op, a: SqlExpr, b: SqlExpr) -> SqlExpr:
     return SqlExpr(is_null=z3.Or(a.is_null, b.is_null), value=op(a.value, b.value), sort=si.NUMERIC)
 
 
+def _div(a: SqlExpr, b: SqlExpr) -> SqlExpr:
+    # Division is deliberately not modeled. Z3's real division is total (a/0
+    # evaluates to a concrete value), so the solver could "prove" two
+    # expressions equal on the strength of a fabricated a/0 result. The
+    # obvious guard -- treat a/0 as NULL -- is *also* unsound: it would equate
+    # `a / b` with a safe-divide refactor like `CASE WHEN b <> 0 THEN a / b END`
+    # (which really does yield NULL at b = 0), even though real SQL *errors*
+    # on `a / b`. Distinguishing "errors" from "NULL" from "value" would need
+    # a third state threaded through every operator; until then, abstaining is
+    # the only sound option. Stage 4 still catches division differences by
+    # executing both queries.
+    raise Undecidable("division not modeled (error-vs-NULL semantics can't be assumed sound)")
+
+
 def _opaque_atom(node: exp.Expression, opaque: dict) -> SqlExpr:
     """Aggregates (COUNT/SUM/...) aren't modeled -- but HAVING clauses very
     commonly reorder/reuse the exact same aggregate expression, so treating
@@ -168,9 +182,17 @@ def compile_expr(node: exp.Expression, column_vars: dict, opaque: dict) -> SqlEx
 
     if isinstance(node, exp.Column):
         key = (node.table, node.name)
-        if key not in column_vars:
-            raise Undecidable(f"unresolved column: {key}")
-        return column_vars[key]
+        if key in column_vars:
+            return column_vars[key]
+        # qualify() is best-effort without a real catalog and can leave a
+        # column unqualified (common in HAVING/WHERE), so ('', name) misses
+        # the ('table', name) entry. Resolve by bare name when it's
+        # unambiguous across the referenced columns; abstain if two tables
+        # share the name (a genuinely ambiguous reference).
+        by_name = [k for k in column_vars if k[1] == node.name]
+        if len(by_name) == 1:
+            return column_vars[by_name[0]]
+        raise Undecidable(f"unresolved column: {key}")
 
     if isinstance(node, exp.AggFunc):
         return _opaque_atom(node, opaque)
@@ -213,9 +235,12 @@ def compile_expr(node: exp.Expression, column_vars: dict, opaque: dict) -> SqlEx
     if isinstance(node, exp.LTE):
         return _ordered_cmp(lambda a, b: a <= b, compile_expr(node.this, column_vars, opaque), compile_expr(node.expression, column_vars, opaque))
 
-    if isinstance(node, (exp.Add, exp.Sub, exp.Mul, exp.Div)):
+    if isinstance(node, exp.Div):
+        return _div(compile_expr(node.this, column_vars, opaque), compile_expr(node.expression, column_vars, opaque))
+
+    if isinstance(node, (exp.Add, exp.Sub, exp.Mul)):
         op = {exp.Add: lambda a, b: a + b, exp.Sub: lambda a, b: a - b,
-              exp.Mul: lambda a, b: a * b, exp.Div: lambda a, b: a / b}[type(node)]
+              exp.Mul: lambda a, b: a * b}[type(node)]
         return _arith(op, compile_expr(node.this, column_vars, opaque), compile_expr(node.expression, column_vars, opaque))
 
     if isinstance(node, exp.Between):

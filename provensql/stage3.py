@@ -39,7 +39,10 @@ from provensql.verdict import Verdict
 
 SMT_ASSUMPTION = (
     "SMT proof covers WHERE/HAVING/SELECT-list scalar expressions only; column types "
-    "are inferred (or catalog-provided) and division-by-zero is not modeled"
+    "are inferred (or catalog-provided); division is not modeled (abstains rather than "
+    "assume error-vs-NULL semantics); numeric columns are modeled as exact reals, so a "
+    "rewrite that only holds under exact arithmetic may be accepted for FLOAT columns "
+    "whose rounding it would actually change"
 )
 
 

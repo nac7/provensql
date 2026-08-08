@@ -15,7 +15,6 @@ understand.
 import sqlglot
 from sqlglot import exp
 from sqlglot.optimizer.qualify import qualify
-from sqlglot.optimizer.simplify import simplify
 
 DIALECT = "bigquery"
 
@@ -97,18 +96,23 @@ def _check_fragment(tree: exp.Expression) -> None:
 
 
 def canonicalize(tree: exp.Expression) -> exp.Expression:
-    """Stage 1. Applies only transforms that are semantics-preserving on
-    their own: identifier qualification, and sqlglot's constant-folding /
-    boolean-simplification pass. Each step is independently best-effort --
-    if qualify() can't resolve a schema it is silently skipped rather than
-    guessed, and a skip on one side just means the two canonical strings
-    won't match later (fails toward UNKNOWN, never toward a false
-    EQUIVALENT).
+    """Stage 1. Applies only identifier qualification -- a structural,
+    semantics-preserving transform -- and leaves the rest to the renderer's
+    normalization (whitespace, casing, quoting). qualify() is best-effort:
+    if it can't resolve a schema it is silently skipped rather than guessed,
+    and a skip on one side just means the two canonical strings won't match
+    later (fails toward UNKNOWN, never toward a false EQUIVALENT).
 
-    Caveat (tracked, not yet resolved): this trusts that sqlglot's
-    simplify() correctly respects SQL's three-valued NULL logic in its
-    boolean rewrites. That assumption should get its own targeted test
-    before this is used to back any formal soundness claim.
+    We deliberately do NOT run sqlglot's simplify() here. Its constant-fold
+    and boolean-simplification pass is not reliably semantics-preserving --
+    tests/test_simplify_faithful.py found it collapsing
+    `CASE WHEN flag THEN b WHEN TRUE THEN 2 ELSE 0 END` to `2` (dropping the
+    earlier branch), which through this function produced a live false
+    EQUIVALENT at Stage 2. Since Stage 2 asserts equivalence purely from a
+    canonical-string match, every transform feeding it must be sound on its
+    own; qualification is, simplify() is not. The constant-fold/boolean
+    equivalences simplify() used to catch now fall to Stage 3's SMT proof,
+    which is independently validated against DuckDB.
     """
     tree = tree.copy()
     try:
@@ -118,10 +122,6 @@ def canonicalize(tree: exp.Expression) -> exp.Expression:
             validate_qualify_columns=False,
             quote_identifiers=False,
         )
-    except Exception:
-        pass
-    try:
-        tree = simplify(tree)
     except Exception:
         pass
     return tree
