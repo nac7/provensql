@@ -151,6 +151,12 @@ If you use provensql in academic work, please cite the archived release
 > Nachiket Lele. *provensql: Sound-by-construction semantic diff for SQL.*
 > Zenodo. https://doi.org/10.5281/zenodo.21853826
 
+To cite the accompanying paper:
+
+> Nachiket Lele. *provensql: Sound, Catalog-Aware Detection of Behavior-Changing
+> SQL Edits — and Why LLMs Can't Be Trusted To Do It.* Preprint, Zenodo, 2026.
+> https://doi.org/10.5281/zenodo.21853967
+
 Machine-readable metadata is in [CITATION.cff](CITATION.cff); GitHub's "Cite
 this repository" button uses it.
 

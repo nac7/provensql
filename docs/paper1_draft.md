@@ -2,8 +2,9 @@
 
 **Nachiket Lele**, Independent Researcher · ORCID [0009-0000-7932-0952](https://orcid.org/0009-0000-7932-0952)
 
-**Preprint, August 2026.** All numbers below are reproducible from the harness
-in `mining/` and `eval/`; see §9.
+**Preprint, August 2026.** DOI: [10.5281/zenodo.21853967](https://doi.org/10.5281/zenodo.21853967).
+All numbers below are reproducible from the harness in `mining/` and `eval/`;
+see §9.
 
 ---
 
