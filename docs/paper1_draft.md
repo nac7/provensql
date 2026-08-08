@@ -1,6 +1,6 @@
 # provensql: Sound, Catalog-Aware Detection of Behavior-Changing SQL Edits — and Why LLMs Can't Be Trusted To Do It
 
-**Nachiket Lele**, Independent Researcher
+**Nachiket Lele**, Independent Researcher · ORCID [0009-0000-7932-0952](https://orcid.org/0009-0000-7932-0952)
 
 **Preprint, August 2026.** All numbers below are reproducible from the harness
 in `mining/` and `eval/`; see §9.
