@@ -61,7 +61,13 @@ def compile_outcome(node: exp.Expression, variables: dict) -> Outcome:
     if isinstance(node, exp.Column):
         name = node.name
         if name not in variables:
-            variables[name] = Outcome(z3.BoolVal(False), z3.Bool(f"{name}__null"), z3.Real(name))
+            # Nullability convention: a column named `notNull...` is NOT NULL, so
+            # its null flag is fixed false. This mirrors Calcite's own test column
+            # naming (vIntNotNull -> notNullInt0, dumped as ?0.notNullInt0), which
+            # lets the rule-ingestion pilot audit nullability-sensitive rules
+            # faithfully. Ordinary columns stay possibly-null.
+            null = z3.BoolVal(False) if name.startswith("notNull") else z3.Bool(f"{name}__null")
+            variables[name] = Outcome(z3.BoolVal(False), null, z3.Real(name))
         return variables[name]
     if isinstance(node, exp.Null):
         return Outcome(z3.BoolVal(False), z3.BoolVal(True), z3.RealVal(0))
@@ -75,6 +81,12 @@ def compile_outcome(node: exp.Expression, variables: dict) -> Outcome:
     if isinstance(node, exp.Neg):
         x = compile_outcome(node.this, variables)
         return Outcome(x.err, x.null, -x.val)
+    if isinstance(node, exp.Cast):
+        # Passthrough: we model the outcome (ERROR/NULL/value), and a cast that
+        # neither overflows nor fails preserves it. Overflow/CAST-failure as a
+        # first-class ERROR is a named engine extension (see rule_ingestion_scope
+        # docs); until then a cast is transparent to the outcome lattice.
+        return compile_outcome(node.this, variables)
 
     if isinstance(node, (exp.Add, exp.Sub, exp.Mul)):
         a = compile_outcome(node.this, variables)
