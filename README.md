@@ -64,6 +64,18 @@ udfs:
 
 Catalog-declared UDFs get a deterministic stand-in registered in DuckDB (see `provensql/udf_rewrite.py` for why a stub is sound here even though it doesn't reproduce the UDF's real logic). Columns declared `ARRAY`/`STRUCT` cause a clean `UNKNOWN` rather than fabricated flat data.
 
+## Demo
+
+See [demo/](demo/) for a one-screen showcase — provensql proving safe edits,
+catching the classic traps (`COUNT(col)`→`COUNT(*)`, `LEFT JOIN`→`JOIN`) with
+executable witnesses, flipping its verdict with the declared schema, and
+refusing out-of-fragment cases — with the LLM-judge comparison alongside:
+
+```
+python demo/showcase.py          # provensql only
+python demo/showcase.py --llm    # add an OpenAI judge column (needs OPENAI_API_KEY)
+```
+
 ## Install
 
 ```
@@ -155,7 +167,7 @@ To cite the accompanying paper:
 
 > Nachiket Lele. *provensql: Sound, Catalog-Aware Detection of Behavior-Changing
 > SQL Edits — and Why LLMs Can't Be Trusted To Do It.* Preprint, Zenodo, 2026.
-> https://doi.org/10.5281/zenodo.21853967
+> https://doi.org/10.5281/zenodo.21853966
 
 Machine-readable metadata is in [CITATION.cff](CITATION.cff); GitHub's "Cite
 this repository" button uses it.

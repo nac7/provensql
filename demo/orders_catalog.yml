@@ -1,0 +1,14 @@
+# Demo catalog: declares the integrity constraints that make a LEFT->INNER
+# join rewrite provably safe. Without these, provensql correctly refuses.
+tables:
+  orders:
+    columns:
+      id: INT64
+      customer_id: INT64
+    not_null: [customer_id]
+    foreign_keys:
+      customer_id: customers.id
+  customers:
+    columns:
+      id: INT64
+    unique: [id]

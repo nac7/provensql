@@ -2,7 +2,7 @@
 
 **Nachiket Lele**, Independent Researcher · ORCID [0009-0000-7932-0952](https://orcid.org/0009-0000-7932-0952)
 
-**Preprint, August 2026.** DOI: [10.5281/zenodo.21853967](https://doi.org/10.5281/zenodo.21853967).
+**Preprint, August 2026.** DOI: [10.5281/zenodo.21853966](https://doi.org/10.5281/zenodo.21853966).
 All numbers below are reproducible from the harness in `mining/` and `eval/`;
 see §9.
 
@@ -98,36 +98,40 @@ pattern:
 
 ## 2. A motivating example
 
-Consider an edit that rewrites a safe-divide:
+Consider a change that swaps a counted column for `COUNT(*)`:
 
 ```sql
 -- before
-SELECT id, revenue / clicks AS rpc FROM ads
+SELECT COUNT(dept) AS c FROM emp
 -- after
-SELECT id, SAFE_DIVIDE(revenue, clicks) AS rpc FROM ads
+SELECT COUNT(*)    AS c FROM emp
 ```
 
-An LLM judge, and many humans, will call these equivalent — "it's just the safe
-version." They are not: on a row with `clicks = 0` the first errors and the
-second returns `NULL`. provensql does not model division precisely enough to
-assume either error-vs-NULL semantics, so it does not prove equivalence; its
-counterexample search constructs the `clicks = 0` instance and returns
-`DIFFERENT` with that row as the witness. The reviewer sees the exact instance
-that breaks, not a verdict to trust on faith.
+An LLM judge, and many humans, will call these equivalent — "it's just counting
+rows." They are not: `COUNT(dept)` skips rows where `dept` is `NULL`, while
+`COUNT(*)` counts them. provensql's counterexample search constructs an `emp`
+instance containing a `NULL`-`dept` row and returns `DIFFERENT`, reporting the
+exact instance — base returns `4`, head returns `5` — as a replayable witness.
+The reviewer sees what breaks, not a verdict to trust on faith.
 
-Conversely, a genuine refactor:
+Whether an edit is safe often depends on the schema. Consider replacing an
+outer join with an inner one:
 
 ```sql
 -- before
-SELECT o.id FROM orders o LEFT JOIN customers c ON o.cust_id = c.id
+SELECT orders.id FROM orders LEFT JOIN customers ON orders.customer_id = customers.id
 -- after
-SELECT o.id FROM orders o JOIN customers c ON o.cust_id = c.id
+SELECT orders.id FROM orders JOIN customers ON orders.customer_id = customers.id
 ```
 
-is equivalent *iff* every `orders.cust_id` matches a `customers.id` — i.e.
-`cust_id` is `NOT NULL` and a foreign key to the unique `customers.id`. With a
-catalog declaring those constraints, provensql proves `EQUIVALENT` and prints
-the assumption it used; without one, it abstains rather than guess.
+These are equivalent *iff* every `orders.customer_id` matches exactly one
+`customers.id`. Given no catalog, provensql cannot assume that: it finds an
+instance with an order whose `customer_id` matches no customer and returns
+`DIFFERENT` with that witness. Given a catalog declaring `orders.customer_id`
+`NOT NULL` with a foreign key to the `UNIQUE` `customers.id`, the *same* pair is
+proven `EQUIVALENT`, and the verdict prints the constraint it relied on. A
+single edit thus flips from `DIFFERENT` to `EQUIVALENT` as the declared schema
+changes — and the assumption is always on the record.
 
 ## 3. Design goals
 
@@ -406,6 +410,10 @@ to assert equivalence.
   templated/scripted SQL, not by proof power.
 - **Catalog-dependent proofs** need declarations the tool cannot infer; each
   prints its assumption.
+- **Alias resolution is best-effort without a catalog.** Heavily aliased
+  queries (e.g. `orders o ... o.customer_id`) may abstain where the unaliased
+  form resolves, because qualification without a schema cannot always map an
+  alias back to its base table.
 - **Roadmap, prioritized by the scope study (§5.6):** (0) subquery unnesting +
   comma-join normalization — the highest-ROI extensions, which the Cosette
   study shows would unlock a slice of both academic sets; (1) aggregation
