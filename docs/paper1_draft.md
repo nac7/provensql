@@ -65,7 +65,10 @@ act on (a witness, not just a boolean), reasoning about the integrity
 constraints a real schema declares, and — above all — a hard guarantee against
 the false-positive that ends trust.
 
-**provensql** targets that setting. Its contributions:
+**provensql** targets that setting. It is explicitly *not* a new decision
+procedure — the proving frontier (QED [5], VeriEQL [6]) is well ahead on that
+axis (§6). Its contributions are a tool, a safety study, and an engineering
+pattern:
 
 1. **A sound-by-construction edit-safety checker** for the constraint-aware
    conjunctive fragment, with four actionable verdicts (`EQUIVALENT`,
@@ -82,10 +85,14 @@ the false-positive that ends trust.
    counterexample engine must never contradict" is promoted from a test to a
    shipped runtime check, so a bug in our own prover degrades coverage, never
    soundness (§4.5). We are not aware of a prior sound checker that ships this.
-5. **An adversarial, honest evaluation** — hand-labeled corpus, coverage
-   ceiling, mutation testing with a statistical soundness bound, an LLM
-   baseline, and a negative benchmark-scope result — including reporting the
-   recall we *lost* to remove an unsound dependency (§5).
+5. **A safety comparison against LLM judges** — the oracle practitioners
+   actually use — showing a state-of-the-art model attains high accuracy yet
+   still emits false `EQUIVALENT`s, the error class provensql precludes (§5.4).
+   This comparison is absent from the prover literature.
+6. **An adversarial, honest evaluation** — hand-labeled corpus, coverage
+   ceiling, mutation testing with a statistical soundness bound, and a negative
+   benchmark-scope result — including reporting the recall we *lost* to remove
+   an unsound dependency (§5).
 
 ## 2. A motivating example
 
@@ -357,15 +364,28 @@ subquery equivalence. It also yields a concrete roadmap (§7).
 
 ## 6. Related work
 
-**Sound equivalence provers.** Cosette/HoTTSQL [1] proves equivalence via a
-denotational semantics and a proof assistant; EQUITAS [2] and SPES [3] use
-symbolic representations and SMT, targeting bag-semantics aggregation and
-subquery rewrites; WeTune [4] discovers and verifies rewrite rules for an
-optimizer. provensql shares their soundness stance but differs in target
-(production change review vs. optimization), in shipping executable witnesses
-for the negative verdict, in making integrity constraints first-class with
-printed assumptions, and in the runtime cross-engine backstop. It covers a
-narrower fragment by design (§5.6).
+**Sound equivalence provers.** This is a mature, fast-moving line.
+Cosette/HoTTSQL [1] proves rewrites via a mechanized denotational semantics;
+EQUITAS [2] and SPES [3] use SMT and symbolic bag representations; WeTune [4]
+discovers and verifies optimizer rewrite rules. The current frontier is
+stronger still: **QED** [5] (VLDB'24) decides equivalence under bag semantics
+with a normal-form calculus that handles integrity constraints and NULLs, and
+**VeriEQL** [6] (OOPSLA'24) does bounded proving *and disproving* of a large
+SQL fragment with rich integrity constraints, emitting counterexamples.
+
+We state the relationship plainly: **provensql does not advance the
+equivalence-proving frontier, and does not claim to.** Executable
+counterexamples (VeriEQL, Polygon [7]), first-class integrity constraints
+(QED, VeriEQL), and three-valued NULL logic (EQUITAS onward) are all prior
+art. On the standard academic benchmarks provensql is deliberately far behind
+these systems, because it targets a narrower fragment (§5.6). What is new here
+is not an algorithm but (i) an *empirical safety comparison against LLM
+judges*, the oracle practitioners actually reach for, which the prover
+literature does not study; (ii) a *change-review tool* built around actionable
+verdicts (printed assumptions, replayable witnesses) rather than optimizer
+integration; and (iii) an engineering pattern — the runtime cross-engine
+backstop (§4.5) — that makes a bug in the prover itself fail safe. The
+contribution is a tool and a study, not a new decision procedure.
 
 **LLMs as judges.** Using LLMs to assess semantic equivalence is increasingly
 common; our §5.4 result quantifies why it is unsafe as a gate — high accuracy,
@@ -389,6 +409,17 @@ to assert equivalence.
   study shows would unlock a slice of both academic sets; (1) aggregation
   reasoning beyond opaque atoms; (2) a fair, fragment-restricted benchmark
   comparison that only becomes meaningful after (1).
+- **A research direction the abstentions point to.** provensql deliberately
+  abstains on division (error-vs-NULL semantics) and models numerics as exact
+  reals. Notably, the entire proving frontier shares this blind spot: QED [5],
+  VeriEQL [6], and the linear-integer-arithmetic approach [8] all encode
+  numbers as mathematical integers/reals and assume total, error-free
+  arithmetic. **Sound equivalence under floating-point/decimal rounding and
+  under runtime-error semantics (division-by-zero, overflow, CAST failure) is
+  therefore an open problem** — and the one most relevant to financial SQL,
+  where a "safe" rewrite can silently change rounding or turn an error into a
+  NULL. We flag it as the most promising avenue for a subsequent, deeper
+  contribution.
 
 ## 8. Demonstration
 
@@ -415,14 +446,24 @@ python eval/benchmark_triage.py eval/benchmarks/spes_calcite_tests.json  # scope
 The single number to check across all of them is the false-`EQUIVALENT` count.
 It is zero, and it is meant to stay zero.
 
-## References (to fill)
+## References
 
-- [1] Chu et al., *HoTTSQL / Cosette: Proving Query Rewrites with Univalent SQL
-  Semantics*, SIGMOD/CIDR.
-- [2] *EQUITAS: Automated ... Query Equivalence* (SMT-based).
-- [3] Zhou et al., *SPES: A Symbolic Approach to Proving Query Equivalence Under
-  Bag Semantics*, ICDE 2021.
-- [4] Wang et al., *WeTune: Automatic Discovery and Verification of Query
-  Rewrite Rules*, SIGMOD 2022.
+- [1] Chu, Weitz, Cheung, Suciu. *HoTTSQL: Proving Query Rewrites with Univalent
+  SQL Semantics.* PLDI 2017. (See also Chu et al., *Cosette*, CIDR 2017.)
+- [2] Zhou, Arulraj, Navathe, Harris, Zhang. *Automated Verification of Query
+  Equivalence Using Satisfiability Modulo Theories* (EQUITAS). PVLDB 12(11),
+  2019.
+- [3] Zhou, Arulraj, Navathe, Harris, Wu. *SPES: A Symbolic Approach to Proving
+  Query Equivalence Under Bag Semantics.* ICDE 2022.
+- [4] Wang et al. *WeTune: Automatic Discovery and Verification of Query Rewrite
+  Rules.* SIGMOD 2022.
+- [5] Wang, Pan, Cheung. *QED: A Powerful Query Equivalence Decider for SQL.*
+  PVLDB 17(11), 2024.
+- [6] *VeriEQL: Bounded Equivalence Verification for Complex SQL Queries with
+  Integrity Constraints.* PACMPL (OOPSLA) 2024. arXiv:2403.03193.
+- [7] *Polygon: Symbolic Reasoning for SQL using Conflict-Driven
+  Under-Approximation Search.* 2025. arXiv:2504.06542.
+- [8] *Proving Query Equivalence Using Linear Integer Arithmetic.* PACMMOD 2023.
 
-*(Citation details to be completed from the source venues before submission.)*
+*(Author lists for [4],[6],[7] and exact page numbers to be completed against
+the source venues before submission.)*

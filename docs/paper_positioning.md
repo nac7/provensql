@@ -115,7 +115,31 @@ the demo.
 
 # Appendix — what Paper 2 (top-tier DB/PL) additionally requires
 
-The scoping made the gap concrete. To be competitive at SIGMOD/VLDB/ICDE/PLDI:
+**Frontier update (2026-08-08 prior-art pass).** The equivalence-proving
+frontier moved well past the original four: **QED** (PVLDB'24) and **VeriEQL**
+(OOPSLA'24) already ship first-class integrity constraints, NULLs, and
+counterexamples over large fragments, beating older tools by 2×–10×. So the
+"catch up on aggregation to compete with SPES" plan below is **no longer a
+viable top-tier path** — it would merely re-derive what QED/VeriEQL already do,
+better. A prior-art check identified one genuinely open niche instead:
+
+**Precision- and error-aware equivalence (the viable top-tier bet).** Every
+prover in the lineage — HoTTSQL K-relations, EQUITAS/SPES symbolic, QED
+Q-expressions, VeriEQL integers+UF, the LIA approach — encodes numbers as exact
+mathematical integers/reals and assumes total, error-free arithmetic. **None
+model IEEE-754/decimal rounding or runtime-error semantics** (division-by-zero,
+overflow, CAST failure). Sound equivalence under those semantics is open,
+practically critical for financial SQL, and directly extends provensql's
+existing division-abstention / floats-as-exact-reals boundary. This also
+overlaps [[project_migration_conformance]] (cross-dialect precision/coercion
+divergence). Caveat: confirm openness by reading the VeriEQL/QED/LIA limitations
+sections verbatim before committing; and note the contribution is likely
+*detecting precision/error divergence* (disproving) more than proving.
+
+The older list below is retained only as the (now-deprecated) aggregation-catchup
+path:
+
+To be competitive at SIGMOD/VLDB/ICDE/PLDI:
 
 0. **Subquery unnesting + comma-join normalization (highest ROI, do first).**
    The Cosette cross-check (§ benchmark_scope.md) showed even the "simple SQL
