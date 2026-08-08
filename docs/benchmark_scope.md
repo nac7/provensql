@@ -68,6 +68,37 @@ provensql, given no catalog, correctly finds a counterexample and returns
 promises. Soundness (never a false `EQUIVALENT`) is fully intact: 0 false
 `EQUIVALENT` on all 232.
 
+## Cross-check: Cosette (confirms the pattern, and sharpens the roadmap)
+
+Two Cosette sets, both all-`EQUIVALENT`:
+
+- **`examples/calcite/calcite_tests.json`** is the *same* Calcite set as SPES's
+  (229/232 shared names; 46 differ only in SQL rendering). Triage: **1/232
+  (0.4%) proven**, 82.8% parse — identical pattern to SPES, from an
+  independently maintained source.
+- **`examples/sqlrewrites/` (22 SPJ-oriented pairs, extracted from the `.cos`
+  DSL)** — the set that *looked* most in-fragment (joinCommute, pushdownSelect,
+  commutativeSelect, havingToWhere, …). Triage: **0/22 proven**, 90.9% parse,
+  **0 false `EQUIVALENT`, 0 false `DIFFERENT`**.
+
+The 0/22 is the useful part, because the *reasons* are specific and nameable —
+not a predicate-reasoning weakness (the mutation eval shows provensql reorders
+conjuncts fine on flat queries) but a **form** mismatch:
+
+| Cosette pair | Why it abstains |
+|---|---|
+| commutativeSelect, conjunctSelect, idempotentSelect | rewrite is expressed through **nested subqueries**; provensql does no subquery unnesting, so it never sees the conjuncts |
+| pushdownSelect, joinCommute | **comma-joins** (`FROM r1 x, r2 y`), not explicit `JOIN … ON` |
+| havingToWhere | aggregation (opaque) **+** subquery unnesting |
+| several | Cosette's `b(x)` tuple-predicate DSL notation isn't real SQL |
+
+So even the "simple SQL rewrites" academic set is written in a
+subquery-nested, comma-join, relational-algebra style that doesn't match
+provensql's flat-SPJ-with-explicit-joins fragment. This directly identifies
+the two highest-ROI fragment extensions: **subquery unnesting** and
+**comma-join → explicit-join normalization**. Adding those would unlock a
+chunk of both Cosette and Calcite without touching aggregation.
+
 ## Recommendation
 
 **Do not run a head-to-head coverage bake-off against SPES/EQUITAS on the

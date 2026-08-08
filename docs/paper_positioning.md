@@ -117,6 +117,13 @@ the demo.
 
 The scoping made the gap concrete. To be competitive at SIGMOD/VLDB/ICDE/PLDI:
 
+0. **Subquery unnesting + comma-join normalization (highest ROI, do first).**
+   The Cosette cross-check (§ benchmark_scope.md) showed even the "simple SQL
+   rewrite" set is 0/22 not for lack of predicate reasoning but because the
+   rewrites are expressed via nested subqueries and comma-joins that provensql
+   never flattens. These two extensions are modest relative to aggregation and
+   would unlock a slice of *both* Cosette and Calcite. Good candidate to land
+   even in Paper 1 as an enhancement.
 1. **Fragment expansion into aggregation reasoning.** The Calcite/SPES
    benchmark is ~half aggregation rewrites; without modeling `SUM`/`COUNT`/
    `GROUP BY` algebra (not as opaque atoms), coverage there stays ~0. This is
