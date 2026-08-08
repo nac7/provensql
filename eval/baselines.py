@@ -14,7 +14,14 @@ label was DIFFERENT or SCHEMA_CHANGE) -- against provensql's 0.
   3. llm_judge         -- ask Claude "are these equivalent?" (needs an API
                            key + billed calls; skipped if unavailable)
 
-Run: python eval/baselines.py [--model claude-opus-5] [--limit N] [--no-llm]
+Running the same judge across two providers (Anthropic + OpenAI) is stronger
+evidence than either alone: it shows the false-EQUIVALENT failure is a
+property of LLM judging in general, not one vendor's model.
+
+Run:
+  python eval/baselines.py --no-llm                       # free baselines only
+  python eval/baselines.py --anthropic-model claude-opus-5
+  python eval/baselines.py --openai-model gpt-5           # needs OPENAI_API_KEY
 The labeled corpus is local-only (see README "Corpus & licensing").
 """
 
@@ -90,6 +97,54 @@ def make_llm_judge(model: str):
     return judge
 
 
+def make_openai_judge(model: str):
+    from openai import OpenAI
+
+    client = OpenAI()  # reads OPENAI_API_KEY from the environment
+    response_format = {
+        "type": "json_schema",
+        "json_schema": {"name": "sql_verdict", "strict": True, "schema": JUDGE_SCHEMA},
+    }
+
+    def judge(base: str, head: str) -> str:
+        try:
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": JUDGE_SYSTEM},
+                    {"role": "user", "content": f"BEFORE:\n{base}\n\nAFTER:\n{head}"},
+                ],
+                response_format=response_format,
+            )
+        except Exception as e:
+            return f"ERROR:{type(e).__name__}"
+        msg = resp.choices[0].message
+        if getattr(msg, "refusal", None):
+            return "UNKNOWN"
+        content = msg.content
+        if not content:
+            return "UNKNOWN"
+        try:
+            return json.loads(content)["verdict"]
+        except Exception:
+            return "UNKNOWN"
+
+    return judge
+
+
+def run_judge(name: str, judge, records: list, labels: list[str]):
+    print(f"\nrunning {name} over {len(records)} pairs... (billed)")
+    verdicts = []
+    for i, r in enumerate(records, 1):
+        verdicts.append(judge(r["base"], r["head"]))
+        if i % 25 == 0:
+            print(f"  {i}/{len(records)}")
+    errors = [v for v in verdicts if v.startswith("ERROR:")]
+    if errors:
+        print(f"  ({len(errors)} calls errored; counted as non-decided) e.g. {errors[0]}")
+    score(name, verdicts, labels)
+
+
 def score(name: str, verdicts: list[str], labels: list[str]):
     false_eq = [
         i for i, (v, l) in enumerate(zip(verdicts, labels))
@@ -109,9 +164,10 @@ def score(name: str, verdicts: list[str], labels: list[str]):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="claude-opus-5")
+    ap.add_argument("--anthropic-model", default=None, help="e.g. claude-opus-5 (needs ANTHROPIC_API_KEY)")
+    ap.add_argument("--openai-model", default=None, help="e.g. gpt-5 (needs OPENAI_API_KEY)")
     ap.add_argument("--limit", type=int, default=None)
-    ap.add_argument("--no-llm", action="store_true", help="skip the LLM judge (no API calls)")
+    ap.add_argument("--no-llm", action="store_true", help="skip all LLM judges (no API calls)")
     args = ap.parse_args()
 
     records = [json.loads(l) for l in open(LABELED, encoding="utf-8")]
@@ -122,25 +178,21 @@ def main():
     score("string_equal", [string_equal(r["base"], r["head"]) for r in records], labels)
     score("sqlglot_normalized", [sqlglot_normalized(r["base"], r["head"]) for r in records], labels)
 
-    if args.no_llm:
-        print("\n(LLM judge skipped: --no-llm)")
-        return
-    try:
-        judge = make_llm_judge(args.model)
-    except Exception as e:
-        print(f"\n(LLM judge unavailable: {type(e).__name__}: {e}). Re-run with credentials, or --no-llm.")
+    if args.no_llm or not (args.anthropic_model or args.openai_model):
+        print("\n(LLM judges skipped -- pass --anthropic-model and/or --openai-model to run them)")
         return
 
-    print(f"\nrunning LLM judge ({args.model}) over {len(records)} pairs... (billed)")
-    verdicts = []
-    for i, r in enumerate(records, 1):
-        verdicts.append(judge(r["base"], r["head"]))
-        if i % 25 == 0:
-            print(f"  {i}/{len(records)}")
-    errors = [v for v in verdicts if v.startswith("ERROR:")]
-    if errors:
-        print(f"  ({len(errors)} calls errored; counted as non-decided)")
-    score(f"llm_judge:{args.model}", verdicts, labels)
+    if args.anthropic_model:
+        try:
+            run_judge(f"anthropic:{args.anthropic_model}", make_llm_judge(args.anthropic_model), records, labels)
+        except Exception as e:
+            print(f"\n(Anthropic judge unavailable: {type(e).__name__}: {e})")
+
+    if args.openai_model:
+        try:
+            run_judge(f"openai:{args.openai_model}", make_openai_judge(args.openai_model), records, labels)
+        except Exception as e:
+            print(f"\n(OpenAI judge unavailable: {type(e).__name__}: {e})")
 
 
 if __name__ == "__main__":

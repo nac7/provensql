@@ -14,4 +14,5 @@ venv/
 # See README.md "Corpus & licensing" for why.
 mining/repos/
 mining/output/*.jsonl
+mining/output/*.txt
 mining/output/chunks/
