@@ -40,11 +40,12 @@ parse (Stage 0) → canonicalize (Stage 1) → canonical-form match? → EQUIVAL
 ```
 
 - **Stage 0 — Parse & fragment check.** Parses with `sqlglot` (BigQuery dialect) and refuses (with a reason code) anything outside the supported fragment: window functions, recursive CTEs, nested ARRAY/STRUCT types, nondeterministic functions.
-- **Stage 1 — Canonicalize.** Identifier qualification + constant folding/boolean simplification, each step independently best-effort so a partial failure fails toward `UNKNOWN`, never toward a false match.
+- **Stage 1 — Canonicalize.** Identifier qualification plus the renderer's normalization only — both semantics-preserving. (A general constant-fold/boolean simplifier was deliberately removed after a trust-boundary test caught `sqlglot`'s `simplify()` producing a real false `EQUIVALENT`; those equivalences now route through the SMT-validated Stage 3 instead. See [docs/evaluation.md](docs/evaluation.md).) Qualification is best-effort, so a partial failure fails toward `UNKNOWN`, never toward a false match.
 - **Stage 2 — Canonical equality.** If both queries render identically after Stage 1, they're `EQUIVALENT`.
 - **Schema check.** Static comparison of the output column list.
 - **Stage 3 — SMT proof.** Requires the relational skeleton (tables/joins/group-by/order/limit) to match exactly, then compiles each `WHERE`/`HAVING`/`SELECT`-list expression into Z3 terms and proves logical equivalence under SQL's three-valued NULL logic — catching rewrites like a `CASE`/`COALESCE` change or a `NOT (a <= 1)` → `a > 1` predicate flip that Stage 2's exact-match can't see. All-or-nothing: if the skeleton doesn't match, or even one expression can't be proven equivalent, it abstains entirely rather than claim a partial result. Aggregates (`COUNT`, `SUM`, ...) aren't modeled semantically but are recognized as identical when textually identical, so reordering a `HAVING` clause around an aggregate still proves out.
 - **Stage 4 — Counterexample search.** Generates small adversarial database instances (NULL rows, duplicate rows, empty tables, disjoint join keys) and executes both queries against them in DuckDB. A divergence is a proof of `DIFFERENT`, complete with a replayable witness instance. Tried after Stage 3 since it's a weaker claim (an absence of a counterexample doesn't prove equivalence) and more expensive (actual execution vs. symbolic reasoning).
+- **Runtime backstop.** On the catalog-free path, every Stage 3 `EQUIVALENT` is re-checked by running Stage 4 on the same pair; if it finds a diverging instance, the proof and the search contradict each other, so the verdict fails safe to `UNKNOWN` rather than ship a false `EQUIVALENT`. A bug in the SMT encoder or solver thus degrades coverage, never soundness.
 
 ### Optional catalog
 
@@ -66,12 +67,12 @@ Catalog-declared UDFs get a deterministic stand-in registered in DuckDB (see `pr
 
 ```
 pip install provensql
-provensql diff base.sql head.sql [--catalog schema.yml]
+provensql diff base.sql head.sql [--catalog schema.yml] [--json]
 ```
 
 (Or `pip install -e ".[dev]"` from a clone to run the test suite.)
 
-Exit codes are CI-friendly: `0` = proven safe, `1` = needs human review, `2` = proven or flagged as a behavior change.
+Exit codes are CI-friendly: `0` = proven safe, `1` = needs human review, `2` = proven or flagged as a behavior change. `--json` emits a machine-checkable audit certificate (verdict, reason, assumptions, and — for `DIFFERENT` — the replayable witness) for archival or PR automation.
 
 ## Evaluation
 
@@ -89,9 +90,9 @@ provensql is evaluated against real commit history, not hand-picked examples. Th
 
 | | |
 |---|---|
-| Coverage (definitive verdict reached) | 10.3% |
+| Coverage (definitive verdict reached) | 10.8% |
 | **False `EQUIVALENT` count** | **0** |
-| Precision on decided cases | 86.4% |
+| Precision on decided cases | 87.0% |
 
 Coverage is low, and that's the honest, expected shape of where this stands: most of the corpus never reaches Stage 3 or 4 at all, rejected at Stage 0 for constructs genuinely out of v0's scope (Jinja templating, BigQuery scripting, window functions). Of what does get through, Stage 3 adds real but modest coverage on top of Stage 2/4 — one additional real production query (a reserved-word backtick-quoting fix) proven equivalent by SMT where exact canonical matching didn't catch it. Small movement, honestly reported. Soundness — the number that actually matters — is clean throughout.
 
@@ -103,14 +104,16 @@ The natural corpus barely exercises Stage 3 (see below), so its refactor-handlin
 
 | Rewrite | Recall | Resolved by |
 |---|---|---|
-| Reorder `WHERE` conjuncts | 97% | Stage 2 |
-| Swap `=` operands | 88% | Stage 2 |
-| Double negation | 94% | Stage 2 + 3 |
-| `WHERE`→`ON` pushdown (inner joins) | **100%** | Stage 3 |
-| Reorder inner-join chain | **75%** | Stage 3 |
-| Redundant `DISTINCT` elimination | **88%** | Stage 3 |
+| `WHERE`→`ON` pushdown (inner joins) | **100%** (6/6) | Stage 3 |
+| Redundant `DISTINCT` elimination | **88%** (43/49) | Stage 3 |
+| Reorder inner-join chain | **75%** (6/8) | Stage 3 |
+| Reorder `WHERE` conjuncts | 3% (2/79) | Stage 3 |
+| Swap `=` operands | 13% (46/348) | Stage 3 |
+| Double negation | 7% (11/160) | Stage 3 |
 
-**Equivalence-breaking mutations (soundness — must NEVER be `EQUIVALENT`):** across 511 mutations (flip a comparison operator, bump a literal, drop a conjunct, add a deduplicating `DISTINCT`), **zero** were wrongly certified equivalent — they land on `DIFFERENT` (with a witness) or `UNKNOWN`.
+The last three rows are deliberately, honestly low. They used to read 97/88/94% when `simplify()` collapsed the reorderings at Stage 2 — but `simplify()` was removed for soundness (it caused a live false `EQUIVALENT`), so they now route through the SMT prover, which abstains the moment an expression contains a function outside its modeled fragment. That drop is the measured price of removing an unsound shortcut; the join/`DISTINCT` rows — Stage 3's actual target capabilities — are unaffected.
+
+**Equivalence-breaking mutations (soundness — must NEVER be `EQUIVALENT`):** across 511 mutations (flip a comparison operator, bump a literal, drop a conjunct, add a deduplicating `DISTINCT`), **zero** were wrongly certified equivalent — they land on `DIFFERENT` (with a witness) or `UNKNOWN`. Zero of 511 gives a one-sided Clopper–Pearson 95% upper bound of **≤ 0.58%** on the true false-`EQUIVALENT` rate.
 
 This is what an equivalence checker's evaluation should look like: high recall on the rewrite classes it targets, and a hard zero on the adversarial cases. It also caught a real limitation — Stage 3 was abstaining whenever any *unchanged* expression used a function outside the SMT fragment (`TIMESTAMP_DIFF` etc.), fixed by a sound "structurally identical expressions are trivially equivalent" fast path.
 
@@ -122,7 +125,7 @@ Two `DIFFERENT` verdicts in this run disagree with the human label of `EQUIVALEN
 
 ### The comparison that motivated this project
 
-An LLM judge given the same pairs will confidently call classic traps equivalent: `LEFT JOIN` → `JOIN` with a nullable key, `COUNT(x)` → `COUNT(*)`, `NOT IN` vs `NOT EXISTS` on a nullable column. provensql either proves the divergence with a witness or honestly says it doesn't know. It never does the first thing.
+An LLM judge given the same pairs will confidently call classic traps equivalent: `LEFT JOIN` → `JOIN` with a nullable key, `COUNT(x)` → `COUNT(*)`, `NOT IN` vs `NOT EXISTS` on a nullable column. Measured on the same 213 pairs, OpenAI `gpt-5` reaches 85.9% accuracy and claims equivalence on 30 pairs — but **2 of those are false `EQUIVALENT`s** (vs provensql's 0), the exact error that makes an LLM unsafe as a review gate. provensql either proves the divergence with a witness or honestly says it doesn't know. It never does the first thing. (Reproduce: `python eval/baselines.py --openai-model gpt-5`.)
 
 ## Corpus & licensing
 
@@ -130,7 +133,8 @@ The mining/labeling *tooling* in this repo (`mining/*.py`) is original code unde
 
 ## Roadmap
 
-- Extend Stage 3 beyond scalar-expression equivalence toward join reassociation and predicate pushdown under catalog-declared FK/uniqueness constraints (the harder, join-structure half of "conjunctive query equivalence" that v1 doesn't attempt).
+- Subquery unnesting and comma-join normalization — the highest-ROI fragment extensions (a scope study against the Cosette/Calcite academic benchmarks showed these, not predicate reasoning, are what currently block coverage there).
+- Precision- and error-aware equivalence: sound reasoning about floating-point/decimal rounding and runtime errors (division-by-zero, overflow, CAST failure), which provensql currently abstains on — and which the entire proving frontier abstracts away.
 - Column-rename lineage hints in the catalog (see the two-false-`DIFFERENT` finding above).
 - Additional dialects beyond BigQuery (the fragment is largely dialect-agnostic via `sqlglot`; BigQuery was chosen for v0 because it has a free, credential-less sandbox that makes the eval corpus reproducible by anyone).
 
