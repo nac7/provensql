@@ -19,6 +19,7 @@ only the transformations are synthetic.
 """
 
 import json
+import math
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -200,6 +201,30 @@ BREAKING = [
 ]
 
 
+def clopper_pearson_upper(k: int, n: int, alpha: float = 0.05) -> float:
+    """One-sided (1 - alpha) upper confidence bound on a binomial rate given k
+    observed events in n trials. Self-contained (no scipy): p_u is the p at
+    which the lower-tail binomial CDF P(X <= k) equals alpha, found by
+    bisection since that CDF is monotonically decreasing in p. For k = 0 this
+    reduces to the exact rule of three, 1 - alpha**(1/n)."""
+    if n == 0:
+        return 1.0
+    if k >= n:
+        return 1.0
+
+    def cdf_le(p: float) -> float:
+        return sum(math.comb(n, i) * p**i * (1 - p) ** (n - i) for i in range(k + 1))
+
+    lo, hi = 0.0, 1.0
+    for _ in range(100):
+        mid = (lo + hi) / 2
+        if cdf_le(mid) > alpha:
+            lo = mid
+        else:
+            hi = mid
+    return hi
+
+
 def _stage(v):
     if v.type == VerdictType.EQUIVALENT:
         return "stage3" if "SMT-proved" in v.reason else "stage2"
@@ -251,6 +276,7 @@ def main():
     # soundness on breaking mutations
     print("\n=== EQUIVALENCE-BREAKING (must NEVER be EQUIVALENT; soundness) ===")
     violations = []
+    total_breaking = total_false_eq = 0
     for name, mut in BREAKING:
         applied = false_eq = 0
         verdicts = defaultdict(int)
@@ -273,6 +299,19 @@ def main():
         dist = ", ".join(f"{k}:{n}" for k, n in sorted(verdicts.items()))
         flag = " *** FALSE EQUIVALENT ***" if false_eq else ""
         print(f"  {name:24s} false_eq {false_eq}/{applied}{flag}  [{dist}]")
+        total_breaking += applied
+        total_false_eq += false_eq
+
+    # A bare "0 false EQUIVALENT" invites "0 out of how many?" -- so report the
+    # one-sided Clopper-Pearson 95% upper confidence bound on the true
+    # false-EQUIVALENT rate given what we observed. For 0 observed failures this
+    # is the exact form of the "rule of three": bound = 1 - 0.05**(1/n).
+    if total_breaking:
+        bound = clopper_pearson_upper(total_false_eq, total_breaking)
+        print(
+            f"\n  soundness: {total_false_eq} false EQUIVALENT across {total_breaking} breaking mutations "
+            f"-> true false-EQUIVALENT rate <= {100*bound:.2f}% (95% one-sided Clopper-Pearson upper bound)"
+        )
 
     if violations:
         out = Path(__file__).parent / "output" / "mutation_violations.jsonl"

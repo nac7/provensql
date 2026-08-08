@@ -49,6 +49,23 @@ reordering, `WHERE`↔`ON` pushdown, and `DISTINCT` elimination. Stage 4
 disproves equivalence by finding a database instance where the two queries
 diverge, and hands back that instance as a replayable witness.
 
+**Defense in depth on the one error that matters.** The single failure this
+tool forbids is a false `EQUIVALENT` from a bug in Stage 3's own SMT encoder
+or the solver — a stage certifying its own mistake. So on the catalog-free
+path, every Stage 3 `EQUIVALENT` is re-checked at runtime by Stage 4:
+`compare()` runs the counterexample search on the just-proven pair, and if
+Stage 4 finds a diverging instance, the two engines contradict each other —
+the proof was wrong — so the verdict fails safe to `UNKNOWN` (carrying the
+contradicting witness) instead of shipping the false `EQUIVALENT`. An
+encoder or solver soundness bug therefore degrades *coverage*, never
+soundness. (The backstop runs only without a catalog: Stage 4 does not
+enforce catalog `NOT NULL`/`UNIQUE`/`FK` constraints, so a catalog-justified
+proof could be "refuted" by an instance that violates those very
+constraints — a spurious contradiction; without a catalog, Stage 3's proofs
+hold on every instance by construction, so any witness is genuine.) This is
+the same invariant `test_cross_validation.py` asserts at test time, promoted
+to a shipped runtime guarantee.
+
 ## 3. Three complementary evaluations
 
 No single evaluation answers every question, so provensql uses three.
@@ -102,20 +119,36 @@ real single-SELECT queries (`python mining/mutation_eval.py`).
 
 | Rewrite | Recall | Resolved by |
 |---|---|---|
-| Reorder `WHERE` conjuncts | 97% | Stage 2 |
-| Swap `=` operands | 88% | Stage 2 |
-| Double negation | 94% | Stage 2 + 3 |
-| `WHERE`→`ON` pushdown (inner joins) | **100%** | Stage 3 |
-| Reorder inner-join chain | **75%** | Stage 3 |
-| Redundant `DISTINCT` elimination | **88%** | Stage 3 |
+| Reorder `WHERE` conjuncts | 3% (2/79) | Stage 3 |
+| Swap `=` operands | 13% (46/348) | Stage 3 |
+| Double negation | 7% (11/160) | Stage 3 |
+| `WHERE`→`ON` pushdown (inner joins) | **100%** (6/6) | Stage 3 |
+| Reorder inner-join chain | **75%** (6/8) | Stage 3 |
+| Redundant `DISTINCT` elimination | **88%** (43/49) | Stage 3 |
+
+The first three rows are deliberately, honestly low. Before Tier 2 they read
+97% / 88% / 94% — but that recall came from `sqlglot`'s `simplify()`
+collapsing the reorderings at Stage 2, and `simplify()` was removed after it
+was caught producing a live false `EQUIVALENT` (§4). All three classes now
+route through the SMT prover, which abstains the moment an expression
+contains a function outside its modeled fragment — and most real queries
+do. The recall drop is the measured price of removing an unsound shortcut:
+soundness bought with coverage, never the reverse. The pure-fragment subset
+of each class still proves cleanly; the join/`DISTINCT` rows — Stage 3's
+actual target capabilities — are unaffected.
 
 **Equivalence-breaking mutations — soundness (must NEVER be `EQUIVALENT`):**
 across **511** mutations (flip a comparison operator, bump a literal, drop a
 conjunct, add a deduplicating `DISTINCT`), **zero** were wrongly certified
 equivalent. Every one landed on `DIFFERENT` (with a witness) or `UNKNOWN`.
+Zero out of 511 is not "probably sound": under a one-sided Clopper-Pearson
+95% bound (the exact rule of three), it puts the true false-`EQUIVALENT`
+rate on this mutation distribution at **≤ 0.58%** — and that ceiling only
+tightens as the corpus grows.
 
-This is the shape an equivalence checker's evaluation should have: high
-recall on the rewrite classes it targets, and a hard zero on adversarial
+This is the shape an equivalence checker's evaluation should have: recall on
+the rewrite classes it targets that is *earned by proof, not by an unsound
+normalizer*, and a hard zero — with a quantified bound — on adversarial
 cases.
 
 ### The comparison that motivates all of this
@@ -136,16 +169,20 @@ human label was `DIFFERENT`/`SCHEMA_CHANGE`), against provensql's **0**:
 |---|---|---|
 | String equality | 0 | Calls *every* pair `DIFFERENT` (they're real diffs) — never recognizes a true equivalence; accuracy 40.8% |
 | `sqlglot`-normalized string compare | 0 | Same — naive normalization catches none of the 213, so its clean soundness is vacuous |
-| LLM judge (Claude/GPT) | *run it* | Needs an API key + billed calls; this is the case that produces false positives |
+| LLM judge (OpenAI `gpt-5`) | **2** | Highest accuracy of any baseline (85.9%) and claims equivalence liberally (30 of 213) — and gets 2 of them wrong |
+| **provensql** | **0** | Claims equivalence on real cases *and* is never wrong when it does |
 
 The two trivial baselines score a clean zero only because they never claim
 equivalence at all — their soundness is an artifact of refusing to play, not
-a real result. The LLM judge is the one that *does* claim equivalence
-liberally and gets some wrong; the harness runs it (`--model`, `--limit`)
-so the false-`EQUIVALENT` rate can be measured directly against provensql's
-zero. The point isn't that provensql is more cautious than an LLM — the
-trivial baselines are trivially cautious too — it's that provensql claims
-equivalence on real cases *and* is never wrong when it does.
+a real result. The LLM judge is the informative comparison: `gpt-5` is
+genuinely good at this task (85.9% exact-match accuracy, 98.1% coverage) and
+*does* claim equivalence liberally — but 2 of its 30 `EQUIVALENT` calls were
+on pairs the human labeled `DIFFERENT`/`SCHEMA_CHANGE`. That is precisely the
+one error class provensql is built to make impossible, and the number that
+separates a proof from a very confident guess. The point isn't that
+provensql is more cautious than an LLM — the trivial baselines are trivially
+cautious too — it's that provensql claims equivalence on real cases *and* is
+never wrong when it does. (Reproduce: `python eval/baselines.py --openai-model gpt-5`.)
 
 ## 4. What the process caught
 
@@ -197,11 +234,22 @@ something real:
 
 ```
 pip install -e ".[dev]"
-python -m pytest tests/ -q                                   # 39 unit tests
+python -m pytest tests/ -q                                   # 56 tests (unit + fuzz + cross-validation + backstop)
 python eval/run_eval.py --catalog mining/output/udf_catalog.yml   # hand-labeled
 python mining/full_corpus_eval.py                            # full-corpus ceiling
-python mining/mutation_eval.py                               # recall + soundness
+python mining/mutation_eval.py                               # recall + soundness bound
 ```
+
+A single comparison can also be run directly, with a machine-checkable audit
+record for archival:
+
+```
+provensql diff before.sql after.sql --json    # structured certificate to stdout
+```
+
+For an `EQUIVALENT` verdict the certificate records that it survived the
+runtime counterexample backstop; for `DIFFERENT`, it embeds the replayable
+witness instance.
 
 The single number to check across all of them: false `EQUIVALENT` count.
 It is zero, and it is meant to stay zero.
