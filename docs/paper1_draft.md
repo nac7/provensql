@@ -448,6 +448,10 @@ python eval/benchmark_triage.py eval/benchmarks/spes_calcite_tests.json  # scope
 The single number to check across all of them is the false-`EQUIVALENT` count.
 It is zero, and it is meant to stay zero.
 
+The tool is open-source (Apache-2.0) at `github.com/nac7/provensql` and on PyPI
+(`pip install provensql`). The evaluated release is archived at Zenodo,
+DOI 10.5281/zenodo.21853826.
+
 ## References
 
 - [1] Shumo Chu, Konstantin Weitz, Alvin Cheung, Dan Suciu. *HoTTSQL: Proving

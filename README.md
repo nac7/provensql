@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/nac7/provensql/actions/workflows/ci.yml/badge.svg)](https://github.com/nac7/provensql/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/provensql)](https://pypi.org/project/provensql/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21853826.svg)](https://doi.org/10.5281/zenodo.21853826)
 
 **Sound-by-construction semantic diff for SQL.** Given two versions of a query, provensql tells you whether the edit could change the answer — and it is built so that it can never wrongly tell you "no change" when there was one.
 
@@ -141,6 +142,17 @@ The mining/labeling *tooling* in this repo (`mining/*.py`) is original code unde
 ## Contributing
 
 Issues and PRs welcome. If you're extending Stage 0's supported fragment or Stage 1's canonicalization rules, the one hard requirement is in `provensql/verdict.py`: no change should make it possible to emit `EQUIVALENT` without an accompanying proof. `tests/test_compare.py` and `tests/test_catalog.py` have the current soundness invariants under test — add to them, don't relax them.
+
+## Citation
+
+If you use provensql in academic work, please cite the archived release
+(concept DOI, always resolves to the latest version):
+
+> Nachiket Lele. *provensql: Sound-by-construction semantic diff for SQL.*
+> Zenodo. https://doi.org/10.5281/zenodo.21853826
+
+Machine-readable metadata is in [CITATION.cff](CITATION.cff); GitHub's "Cite
+this repository" button uses it.
 
 ## License
 
