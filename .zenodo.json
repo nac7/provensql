@@ -1,0 +1,23 @@
+{
+  "title": "provensql: Sound-by-construction semantic diff for SQL",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "Apache-2.0",
+  "creators": [
+    {
+      "name": "Lele, Nachiket",
+      "affiliation": "Independent Researcher"
+    }
+  ],
+  "description": "<p>provensql decides whether an edit to a SQL query changes its result. It returns EQUIVALENT only with a proof (canonical-form or SMT), DIFFERENT only with a concrete, executable counterexample database instance, and otherwise abstains (UNKNOWN) rather than guess. Soundness &mdash; never a false EQUIVALENT &mdash; is enforced structurally and defended at runtime by a cross-engine backstop. It targets production change-safety review of the constraint-aware conjunctive SQL fragment, with catalog-justified refactor proofs and machine-checkable audit certificates.</p>",
+  "keywords": [
+    "SQL",
+    "query equivalence",
+    "semantic diff",
+    "SMT",
+    "soundness",
+    "data engineering",
+    "regression testing",
+    "LLM evaluation"
+  ]
+}

@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use provensql in academic work, please cite it as below."
+title: "provensql: Sound-by-construction semantic diff for SQL"
+abstract: >-
+  provensql decides whether an edit to a SQL query changes its result. It
+  returns EQUIVALENT only with a proof (canonical-form or SMT), DIFFERENT only
+  with a concrete, executable counterexample database instance, and otherwise
+  abstains (UNKNOWN) rather than guess. Soundness -- never a false EQUIVALENT --
+  is enforced structurally and defended at runtime by a cross-engine backstop.
+  It targets production change-safety review of the constraint-aware conjunctive
+  SQL fragment, with catalog-justified refactor proofs and machine-checkable
+  audit certificates.
+type: software
+authors:
+  - family-names: Lele
+    given-names: Nachiket
+    affiliation: "Independent Researcher"
+version: "0.1.0"
+date-released: "2026-08-08"
+license: Apache-2.0
+repository-code: "https://github.com/nac7/provensql"
+url: "https://github.com/nac7/provensql"
+keywords:
+  - SQL
+  - query equivalence
+  - semantic diff
+  - SMT
+  - soundness
+  - data engineering
+  - regression testing
+  - LLM evaluation
