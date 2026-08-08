@@ -16,3 +16,6 @@ mining/repos/
 mining/output/*.jsonl
 mining/output/*.txt
 mining/output/chunks/
+
+# Third-party benchmark data (fetched, not redistributed)
+eval/benchmarks/*.json
