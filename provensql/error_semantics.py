@@ -63,6 +63,11 @@ def compile_outcome(node: exp.Expression, variables: dict) -> Outcome:
         if name not in variables:
             variables[name] = Outcome(z3.BoolVal(False), z3.Bool(f"{name}__null"), z3.Real(name))
         return variables[name]
+    if isinstance(node, exp.Null):
+        return Outcome(z3.BoolVal(False), z3.BoolVal(True), z3.RealVal(0))
+    if isinstance(node, exp.Boolean):
+        return Outcome(z3.BoolVal(False), z3.BoolVal(False),
+                       z3.RealVal(1) if node.this else z3.RealVal(0))
     if isinstance(node, exp.Literal):
         if node.is_string:
             raise NotModeled("string literal")
@@ -104,6 +109,20 @@ def compile_outcome(node: exp.Expression, variables: dict) -> Outcome:
         err = z3.Or(a.err, b.err)  # SAFE_DIVIDE returns NULL on /0, never raises
         null = z3.And(z3.Not(err), z3.Or(a.null, b.null, b.val == 0))
         return Outcome(err, null, a.val / b.val)
+
+    if isinstance(node, exp.Is):
+        # IS NULL: a runtime ERROR in the operand still propagates (engines that
+        # raise on the inner expression never reach the null test); otherwise the
+        # result is the boolean 1/0 of "operand is NULL". This is the exact shape
+        # of CALCITE-7145, where RexSimplify wrongly folds IS NULL(10/0) to false.
+        if isinstance(node.expression, exp.Null):
+            x = compile_outcome(node.this, variables)
+            return Outcome(x.err, z3.BoolVal(False), z3.If(x.null, z3.RealVal(1), z3.RealVal(0)))
+        raise NotModeled("IS <non-null predicate>")
+    if isinstance(node, exp.Not):
+        # boolean negation over the 0/1 lattice; ERROR and NULL propagate.
+        x = compile_outcome(node.this, variables)
+        return Outcome(x.err, x.null, z3.RealVal(1) - x.val)
 
     raise NotModeled(_func_name(node))
 

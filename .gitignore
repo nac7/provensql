@@ -26,3 +26,6 @@ docs/paper1_draft.html
 
 # Generated audit result (reproduce via scripts/fp_rule_audit.py)
 docs/fp_rule_audit_result.json
+
+# Generated audit result (reproduce via scripts/optimizer_rule_audit.py)
+docs/optimizer_rule_audit_result.json

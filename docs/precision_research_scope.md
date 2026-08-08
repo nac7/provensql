@@ -109,10 +109,22 @@ preserve the value/NULL/ERROR outcome).
   engines over a curated set of common algebraic rewrites. Result
   (docs/fp_rule_audit.md): **7/12 FP-unsound** and **4/5 error-unsound**, each
   with a witness — including `(a+b)-b = a` and `(a*b)/b = a`, which are unsound
-  under *both* rounding and error/NULL semantics. Establishes the capability;
-  the remaining step is scaling ingestion to a full optimizer rule base
-  (Calcite/Spark/WeTune), where any real-valid-but-FP/error-unsound rule is a
-  reportable defect.
+  under *both* rounding and error/NULL semantics. Establishes the capability.
+- **M3-headline — DONE (real optimizer rules).** `scripts/optimizer_rule_audit.py`
+  runs the engines over a *cited* corpus of rules real optimizers apply
+  (`mining/optimizer_rules.py`) and reconciles each verdict with the optimizer's
+  own handling. Result (docs/optimizer_rule_audit.md): **no rule ever
+  contradicts ground truth** (soundness contract; UNKNOWN is honest abstention),
+  and 8–9 of 9 resolve with a witness. The FP engine re-derives Spark
+  `ReorderAssociativeOperator`'s IntegralType guard (reassociation UNSOUND on
+  floats, with witness), and the ERROR/NULL engine flags Calcite's tracked
+  defect **CALCITE-7145** (`IS NULL(10/0) → false`) plus the subtle CALCITE-7295
+  safe/unsafe-divisor boundary. Framed honestly as validation against ground
+  truth (guards + JIRAs), not novel-bug discovery.
+  Required extending `error_semantics.py` with NULL/boolean literals and the
+  `IS [NOT] NULL` predicate. The remaining step is an *automatic* ingest of a
+  full rule base, where a real-valid-but-FP/error-unsound rule with no adequate
+  guard would be a genuine, reportable defect.
 - **M4** — formal write-up: the typed encoding, per-rule soundness statements,
   and the empirical audit.
 
