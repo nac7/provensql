@@ -1,8 +1,10 @@
 # provensql: Sound, Catalog-Aware Detection of Behavior-Changing SQL Edits — and Why LLMs Can't Be Trusted To Do It
 
-**Draft — SE / tools + demo track.** Author block, venue, and camera-ready
-formatting TBD. All numbers below are reproducible from the harness in
-`mining/` and `eval/`; see §9.
+**Nachiket Lele**, Independent Researcher
+
+**Draft — SE / tools + demo track.** Venue and camera-ready formatting TBD.
+All numbers below are reproducible from the harness in `mining/` and `eval/`;
+see §9.
 
 ---
 
