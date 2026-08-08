@@ -87,8 +87,16 @@ preserve the value/NULL/ERROR outcome).
 
 ## Milestones
 
-- **M1** — typed FP scalar equivalence + the reassociation/decimal disproofs
-  (extends `smt.py`; reuses the counterexample-witness plumbing).
+- **M1 — DONE (prototype).** Scalar FP equivalence/divergence in
+  `provensql/precision.py` (standalone; does not touch the shipped pipeline).
+  Disproves reassociation and distributivity under IEEE-754 with witnesses
+  validated by `numpy.float32`; proves simple identities (`x*1.0`); abstains to
+  `UNKNOWN` on solver timeout. Confirmed at the tool level that proving
+  FP-equivalence (UNSAT) is hard even for commutativity while disproving (SAT)
+  is fast — so the contribution centers on disproof/bug-finding. Tests in
+  `tests/test_precision.py`, incl. the headline contrast: the exact-real Stage 3
+  proves `(a+b)+c == a+(b+c)` EQUIVALENT while the prototype flags it DIVERGENT.
+  Default sort is Float32 for tractability (Float64 behind the timeout).
 - **M2** — the value/NULL/ERROR lattice and error-equivalence.
 - **M3** — the optimizer-rule audit; triage and confirm any unsound rules.
 - **M4** — formal write-up: the typed encoding, per-rule soundness statements,
