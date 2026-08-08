@@ -105,7 +105,14 @@ preserve the value/NULL/ERROR outcome).
   `a/NULLIF(b,0)` vs `SAFE_DIVIDE(a,b)` proves EQUIVALENT_ERR. Proving is
   tractable here (real arithmetic), unlike the float case. Tests in
   `tests/test_error_semantics.py`.
-- **M3** — the optimizer-rule audit; triage and confirm any unsound rules.
+- **M3 — DONE (curated prototype).** `scripts/fp_rule_audit.py` runs the M1/M2
+  engines over a curated set of common algebraic rewrites. Result
+  (docs/fp_rule_audit.md): **7/12 FP-unsound** and **4/5 error-unsound**, each
+  with a witness — including `(a+b)-b = a` and `(a*b)/b = a`, which are unsound
+  under *both* rounding and error/NULL semantics. Establishes the capability;
+  the remaining step is scaling ingestion to a full optimizer rule base
+  (Calcite/Spark/WeTune), where any real-valid-but-FP/error-unsound rule is a
+  reportable defect.
 - **M4** — formal write-up: the typed encoding, per-rule soundness statements,
   and the empirical audit.
 
