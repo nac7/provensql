@@ -2,9 +2,8 @@
 
 **Nachiket Lele**, Independent Researcher
 
-**Draft — SE / tools + demo track.** Venue and camera-ready formatting TBD.
-All numbers below are reproducible from the harness in `mining/` and `eval/`;
-see §9.
+**Preprint, August 2026.** All numbers below are reproducible from the harness
+in `mining/` and `eval/`; see §9.
 
 ---
 
