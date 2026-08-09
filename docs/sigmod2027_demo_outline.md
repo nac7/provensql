@@ -43,6 +43,10 @@ A single laptop station with a guided UI + terminal. Four short acts, each ~2 mi
 ## 5. Related work (≈¼ page)
 Cosette, EQUITAS, SPES, WeTune, QED, VeriEQL, Polygon — all exact-real/total-arithmetic; none offer a sound, precision/error-aware, witness-producing interactive experience (condense Paper 2 §10).
 
+## Captured figures (in `docs/figures/`)
+- `demo-divergent-witness.png` — the precision engine returning DIVERGENT on `(a+b)+c` vs `a+(b+c)` with a Float32 witness (paper Fig. showing the IEEE-754 disproof + witness UI).
+- `demo-llm-race.png` — provensql DIFFERENT vs an LLM judge's wrong EQUIVALENT on `COUNT(dept)` vs `COUNT(*)` (paper Fig. for §4 Act 4; also the Show HN reply image).
+
 ## Build notes / checklist
 - Register CMT + confirm ORCID on all authors early (desk-reject risk).
 - 4 pages HARD; put formalism in the preprints, keep §4 the largest section.
