@@ -22,7 +22,7 @@ eval/benchmarks/*.json
 
 # Generated paper artifacts (build via docs/build_paper.py)
 docs/*.pdf
-docs/paper1_draft.html
+docs/*.html
 
 # Generated audit result (reproduce via scripts/fp_rule_audit.py)
 docs/fp_rule_audit_result.json
