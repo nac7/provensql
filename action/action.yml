@@ -1,0 +1,61 @@
+name: "provensql SQL equivalence check"
+description: "Fail a pull request when a SQL change is not proven equivalence-preserving. Sound by construction: never a false EQUIVALENT."
+author: "Nachiket Lele"
+branding:
+  icon: "check-circle"
+  color: "green"
+
+inputs:
+  paths:
+    description: "Newline- or comma-separated glob(s) of SQL files to check."
+    required: false
+    default: "**/*.sql"
+  catalog:
+    description: "Optional path to a catalog YAML (table/column types, known UDFs), passed to `provensql diff --catalog`."
+    required: false
+    default: ""
+  fail-on:
+    description: "When to fail the job: 'different' (proven behavior changes only), 'unknown' (also fail on undecidable), or 'never' (report only)."
+    required: false
+    default: "different"
+  comment:
+    description: "Post/update a summary comment on the pull request ('true' or 'false')."
+    required: false
+    default: "true"
+  provensql-version:
+    description: "PyPI version spec to install, e.g. '0.1.1'. Empty installs the latest."
+    required: false
+    default: ""
+  python-version:
+    description: "Python version used to run provensql."
+    required: false
+    default: "3.13"
+  github-token:
+    description: "Token used to post the PR comment. Defaults to the workflow token."
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install provensql
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.provensql-version }}" ]; then
+          pip install "provensql==${{ inputs.provensql-version }}"
+        else
+          pip install provensql
+        fi
+    - name: Run provensql on changed SQL
+      shell: bash
+      env:
+        PROVENSQL_PATHS: ${{ inputs.paths }}
+        PROVENSQL_CATALOG: ${{ inputs.catalog }}
+        PROVENSQL_FAIL_ON: ${{ inputs.fail-on }}
+        PROVENSQL_COMMENT: ${{ inputs.comment }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: python "$GITHUB_ACTION_PATH/provensql_ci.py"

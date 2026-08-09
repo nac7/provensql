@@ -1,0 +1,24 @@
+name: provensql SQL check
+
+# Dogfoods the provensql GitHub Action (action/) on this repo's own pull
+# requests: any modified .sql file is checked for equivalence. No-ops cleanly
+# when a PR touches no SQL. Runs the Action exactly as a consumer would --
+# the Action installs provensql from PyPI itself.
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  sql-equivalence:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./action
+        with:
+          paths: "**/*.sql"
+          fail-on: different
