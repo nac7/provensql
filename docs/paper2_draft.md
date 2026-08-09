@@ -322,29 +322,38 @@ error/NULL lattice, and the empirical audit against a production optimizer.
 
 ## References
 
-*(Venues verified; author lists and pages to be finalized on deposit.)*
+*(Verified against publisher records, August 2026.)*
 
 [1] S. Chu, K. Weitz, A. Cheung, D. Suciu. "HoTTSQL: Proving Query Rewrites with
-Univalent SQL Semantics." PLDI 2017.
-[2] S. Chu et al. "Cosette: An Automated Prover for SQL." CIDR 2017.
-[3] Q. Zhou et al. "Automated Verification of Query Equivalence Using
-Satisfiability Modulo Theories." PVLDB 2019 (EQUITAS).
-[4] Q. Zhou et al. "SPES: A Symbolic Approach to Proving Query
-Equivalence Under Bag Semantics." ICDE 2022.
-[5] Z. Wang et al. "WeTune: Automatic Discovery and Verification of Query
-Rewrite Rules." SIGMOD 2022.
-[6] S. Wang, S. Pan, A. Cheung et al. "QED: Query Equivalence Decision" (bag
-semantics with integrity constraints and NULLs). PVLDB 2024.
-[7] "VeriEQL: Bounded Equivalence Verification for Complex SQL Queries with
-Integrity Constraints." OOPSLA 2024.
-[8] "Polygon: bounded SQL equivalence." PLDI 2025.
+Univalent SQL Semantics." PLDI 2017, pp. 510–524.
+[2] S. Chu, C. Wang, K. Weitz, A. Cheung. "Cosette: An Automated Prover for
+SQL." CIDR 2017.
+[3] Q. Zhou, J. Arulraj, S. B. Navathe, W. Harris, D. Xu. "Automated
+Verification of Query Equivalence Using Satisfiability Modulo Theories." PVLDB
+12(11):1276–1288, 2019. DOI 10.14778/3342263.3342267. (EQUITAS)
+[4] Q. Zhou, J. Arulraj, S. B. Navathe, W. Harris, J. Wu. "SPES: A Two-Stage
+Query Equivalence Verifier." ICDE 2022.
+[5] Z. Wang, Z. Zhou, Y. Yang, H. Ding, G. Hu, D. Ding, C. Tang, H. Chen,
+J. Li. "WeTune: Automatic Discovery and Verification of Query Rewrite Rules."
+SIGMOD 2022.
+[6] S. Wang, S. Pan, A. Cheung. "QED: A Powerful Query Equivalence Decider for
+SQL." PVLDB 17(11):3602–3614, 2024. DOI 10.14778/3681954.3682024.
+[7] Y. He, P. Zhao, X. Wang, Y. Wang. "VeriEQL: Bounded Equivalence
+Verification for Complex SQL Queries with Integrity Constraints." Proc. ACM
+Program. Lang. 8(OOPSLA1), Article 132, 2024, 29 pp. DOI 10.1145/3649849.
+(Distinguished Paper)
+[8] P. Zhao, Y. Wang, X. Wang. "Polygon: Symbolic Reasoning for SQL using
+Conflict-Driven Under-Approximation Search." PLDI 2025. DOI 10.1145/3729303.
 [9] IEEE Standard for Floating-Point Arithmetic, IEEE 754-2019.
 [10] D. Goldberg. "What Every Computer Scientist Should Know About
-Floating-Point Arithmetic." ACM Computing Surveys, 1991.
-[11] "Proving Query Equivalence Using Linear Integer Arithmetic." PACMMOD 2023.
+Floating-Point Arithmetic." ACM Computing Surveys 23(1):5–48, 1991.
+[11] H. Ding, Z. Wang, Y. Yang, D. Zhang, Z. Xu, H. Chen, R. Piskac, J. Li.
+"Proving Query Equivalence Using Linear Integer Arithmetic." Proc. ACM Manag.
+Data 1(4), Article 227, 2023. DOI 10.1145/3626768. (SQLSolver)
 [12] N. Lele. "provensql: Sound, Catalog-Aware Detection of Behavior-Changing
 SQL Edits." Preprint, 2026. DOI 10.5281/zenodo.21853966.
-[13] L. de Moura, N. Bjørner. "Z3: An Efficient SMT Solver." TACAS 2008.
-[14] Apache Calcite issue tracker, CALCITE-7145, CALCITE-7295.
-[15] Apache Spark, Catalyst `ReorderAssociativeOperator` (optimizer/
-expressions.scala).
+[13] L. de Moura, N. Bjørner. "Z3: An Efficient SMT Solver." TACAS 2008, LNCS
+4963, pp. 337–340.
+[14] Apache Calcite issue tracker, CALCITE-7145 and CALCITE-7295.
+[15] Apache Spark, Catalyst `ReorderAssociativeOperator`
+(`sql/catalyst/.../optimizer/expressions.scala`).
