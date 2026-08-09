@@ -1,0 +1,102 @@
+[
+  {
+    "id": "reorder",
+    "act": "1. Prove & disprove",
+    "engine": "query",
+    "title": "Predicate reorder (safe)",
+    "base": "SELECT a FROM t WHERE x > 5 AND y < 10",
+    "head": "SELECT a FROM t WHERE y < 10 AND x > 5",
+    "caption": "Reordering AND-ed predicates preserves behavior. provensql proves it."
+  },
+  {
+    "id": "schema",
+    "act": "1. Prove & disprove",
+    "engine": "query",
+    "title": "Extra output column",
+    "base": "SELECT a FROM t",
+    "head": "SELECT a, b FROM t",
+    "caption": "A changed result shape is a SCHEMA_CHANGE, not an equivalence question."
+  },
+  {
+    "id": "unknown",
+    "act": "1. Prove & disprove",
+    "engine": "query",
+    "title": "Undecidable edit (honest abstention)",
+    "base": "SELECT a FROM t WHERE x > 5",
+    "head": "SELECT a FROM t WHERE x > 50",
+    "caption": "Neither proof nor counterexample search resolved this: UNKNOWN, never a guess."
+  },
+  {
+    "id": "count",
+    "act": "1. Prove & disprove",
+    "engine": "query",
+    "title": "COUNT(col) vs COUNT(*)  (behavior change)",
+    "base": "SELECT COUNT(dept) FROM t",
+    "head": "SELECT COUNT(*) FROM t",
+    "caption": "COUNT(dept) skips NULLs. provensql disproves the rewrite with a replayable witness."
+  },
+  {
+    "id": "assoc",
+    "act": "2. Turn on precision (IEEE-754)",
+    "engine": "fp",
+    "title": "Reassociation  (a+b)+c = a+(b+c)",
+    "base": "(a + b) + c",
+    "head": "a + (b + c)",
+    "caption": "Valid over the reals; an exact-real prover accepts it. Under IEEE-754 DOUBLE it diverges — here is a witness, re-executed to confirm."
+  },
+  {
+    "id": "distrib",
+    "act": "2. Turn on precision (IEEE-754)",
+    "engine": "fp",
+    "title": "Distribution  a*(b+c) = a*b + a*c",
+    "base": "a * (b + c)",
+    "head": "a*b + a*c",
+    "caption": "Another real-number-valid rewrite that rounds differently in floating point."
+  },
+  {
+    "id": "cancel",
+    "act": "2. Turn on precision (IEEE-754)",
+    "engine": "fp",
+    "title": "Cancellation  (a+b)-b = a",
+    "base": "(a + b) - b",
+    "head": "a",
+    "caption": "Addition then subtraction does not cancel under rounding."
+  },
+  {
+    "id": "calcite7145",
+    "act": "3. Catch a real optimizer bug",
+    "engine": "error",
+    "title": "CALCITE-7145:  (10/0) IS NULL  vs  FALSE",
+    "base": "(10 / 0) IS NULL",
+    "head": "FALSE",
+    "caption": "Calcite once simplified this to false. Division by zero is an ERROR, not a definite false — provensql flags exactly the case Calcite had to patch."
+  },
+  {
+    "id": "unsafe_div",
+    "act": "3. Catch a real optimizer bug",
+    "engine": "error",
+    "title": "a / b  vs  SAFE_DIVIDE(a, b)",
+    "base": "a / b",
+    "head": "SAFE_DIVIDE(a, b)",
+    "caption": "Error-changing refactor: a/b raises on b=0 where SAFE_DIVIDE returns NULL. DIFFERENT."
+  },
+  {
+    "id": "safe_div",
+    "act": "3. Catch a real optimizer bug",
+    "engine": "error",
+    "title": "a / NULLIF(b,0)  vs  SAFE_DIVIDE(a, b)",
+    "base": "a / NULLIF(b, 0)",
+    "head": "SAFE_DIVIDE(a, b)",
+    "caption": "Guarded with NULLIF, the two agree on every outcome — EQUIVALENT under the error lattice."
+  },
+  {
+    "id": "llm_race",
+    "act": "4. Beat the LLM",
+    "engine": "query",
+    "title": "COUNT(dept) vs COUNT(*)  —  human/LLM intuition vs a prover",
+    "base": "SELECT COUNT(dept) FROM t",
+    "head": "SELECT COUNT(*) FROM t",
+    "caption": "Run both: the LLM judge confidently calls this EQUIVALENT; provensql disproves it. This is why soundness matters.",
+    "judge": true
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "SELECT COUNT(dept) FROM t||SELECT COUNT(*) FROM t": {
+    "verdict": "EQUIVALENT",
+    "note": "Both queries count the rows in table t, so they return the same value.",
+    "model": "gpt-5 (cached)"
+  },
+  "(10 / 0) IS NULL||FALSE": {
+    "verdict": "EQUIVALENT",
+    "note": "10/0 is undefined and treated as NULL, and NULL IS NULL... so this reduces to a constant; looks equivalent to FALSE.",
+    "model": "gpt-5 (cached)"
+  }
+}

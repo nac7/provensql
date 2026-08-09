@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>provensql — live equivalence checking</title>
+<style>
+  :root {
+    --bg:#0e141b; --surface:#151d26; --surface2:#1b2732; --border:#2a3742;
+    --ink:#e7eef4; --soft:#a6b4c1; --muted:#6c7b8a; --accent:#40bcae;
+    --good:#4bb98a; --good-bg:#12352a; --bad:#e5695f; --bad-bg:#3a1c1a;
+    --warn:#d69a4a; --warn-bg:#3a2e15;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55}
+  header{padding:22px 28px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{font-size:22px;margin:0;letter-spacing:-.01em}
+  header h1 .m{font-family:var(--mono)}
+  header .tag{color:var(--soft);font-size:14px}
+  .bar{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface)}
+  .bar label{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  select{background:var(--surface2);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:15px;min-width:340px;font-family:var(--sans)}
+  .act-cap{color:var(--soft);font-size:14px;flex:1;min-width:220px}
+  main{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:22px 28px;max-width:1200px}
+  @media (max-width:860px){main{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
+  .panel h2{font-size:13px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+  .field{margin-bottom:14px}
+  .field .lbl{font-family:var(--mono);font-size:12px;color:var(--soft);margin-bottom:5px}
+  textarea{width:100%;background:var(--surface2);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:11px;font-family:var(--mono);font-size:14px;resize:vertical;min-height:58px}
+  .enginetag{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 10px;margin-bottom:12px}
+  button{background:var(--accent);color:#052b28;border:0;border-radius:9px;padding:11px 20px;font-size:15px;font-weight:640;cursor:pointer;font-family:var(--sans)}
+  button:hover{filter:brightness(1.06)}
+  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  .chip{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-weight:700;font-size:20px;padding:8px 16px;border-radius:10px;letter-spacing:.02em}
+  .chip.good{background:var(--good-bg);color:var(--good)} .chip.bad{background:var(--bad-bg);color:var(--bad)} .chip.unknown{background:var(--warn-bg);color:var(--warn)}
+  .reason{color:var(--soft);margin:14px 0 0;font-size:15px}
+  .assume{margin:12px 0 0;padding:0;list-style:none}
+  .assume li{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin:3px 0}
+  .assume li::before{content:"assuming ";color:var(--muted)}
+  .witness{margin-top:16px}
+  .witness .wl{font-family:var(--mono);font-size:12px;color:var(--soft);margin-bottom:6px}
+  table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:13px}
+  th,td{border:1px solid var(--border);padding:6px 10px;text-align:left}
+  th{background:var(--surface2);color:var(--soft)}
+  pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:var(--mono);font-size:12.5px;overflow-x:auto;white-space:pre-wrap;color:var(--soft)}
+  .placeholder{color:var(--muted);font-style:italic}
+  .race{padding:0 28px 30px;max-width:1200px}
+  .race h2{font-size:13px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:860px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+  .card .who{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  .card.disagree{border-color:var(--bad)}
+  .note{color:var(--soft);font-size:14px;margin-top:10px}
+  .hidden{display:none}
+  .foot{color:var(--muted);font-size:12px;font-family:var(--mono);padding:0 28px 28px}
+</style>
+</head>
+<body>
+  <header>
+    <h1><span class="m">provensql</span> — live equivalence checking</h1>
+    <span class="tag">Sound by construction: never a false EQUIVALENT.</span>
+  </header>
+
+  <div class="bar">
+    <label for="scenario">Scenario</label>
+    <select id="scenario"></select>
+    <span class="act-cap" id="caption"></span>
+  </div>
+
+  <main>
+    <div class="panel">
+      <h2>Input</h2>
+      <span class="enginetag" id="enginetag">query</span>
+      <div class="field"><div class="lbl">Base</div><textarea id="base" spellcheck="false"></textarea></div>
+      <div class="field"><div class="lbl">Head (rewrite)</div><textarea id="head" spellcheck="false"></textarea></div>
+      <button id="run">Check equivalence</button>
+    </div>
+
+    <div class="panel">
+      <h2>Verdict</h2>
+      <div id="verdict"><p class="placeholder">Pick a scenario and press “Check equivalence”.</p></div>
+    </div>
+  </main>
+
+  <div class="race hidden" id="raceSection">
+    <h2>Act 4 — provensql vs the LLM judge</h2>
+    <button class="ghost" id="race">Run both</button>
+    <div class="cards" style="margin-top:14px">
+      <div class="card" id="cardPvs"><div class="who">provensql</div><div class="body placeholder">—</div></div>
+      <div class="card" id="cardLlm"><div class="who">LLM judge</div><div class="body placeholder">—</div></div>
+    </div>
+  </div>
+
+  <div class="foot">Local demo · engines: compare (Stage 0–4) · precision (IEEE-754) · error lattice · LLM responses cached for offline use.</div>
+
+<script>
+let SCENARIOS = [];
+const $ = id => document.getElementById(id);
+
+async function load() {
+  SCENARIOS = await (await fetch("/scenarios")).json();
+  const sel = $("scenario");
+  let act = null;
+  for (const s of SCENARIOS) {
+    if (s.act !== act) { act = s.act; const og = document.createElement("optgroup"); og.label = act; og.id = "og-"+act; sel.appendChild(og); }
+    const o = document.createElement("option"); o.value = s.id; o.textContent = s.title;
+    sel.querySelector(`optgroup[label="${s.act}"]`).appendChild(o);
+  }
+  sel.addEventListener("change", () => select(sel.value));
+  select(SCENARIOS[0].id);
+}
+
+function current() { return SCENARIOS.find(s => s.id === $("scenario").value); }
+
+function select(id) {
+  const s = SCENARIOS.find(x => x.id === id);
+  $("scenario").value = id;
+  $("base").value = s.base; $("head").value = s.head;
+  $("enginetag").textContent = s.engine;
+  $("caption").textContent = s.caption || "";
+  $("verdict").innerHTML = '<p class="placeholder">Press “Check equivalence”.</p>';
+  $("raceSection").classList.toggle("hidden", !s.judge);
+  $("cardPvs").querySelector(".body").className = "body placeholder"; $("cardPvs").querySelector(".body").textContent = "—";
+  $("cardLlm").querySelector(".body").className = "body placeholder"; $("cardLlm").querySelector(".body").textContent = "—";
+  $("cardPvs").classList.remove("disagree"); $("cardLlm").classList.remove("disagree");
+}
+
+function witnessHtml(w) {
+  if (!w) return "";
+  if (typeof w === "string") return `<div class="witness"><div class="wl">Replayable witness</div><pre>${esc(w)}</pre></div>`;
+  if (w.inputs !== undefined || w.lhs !== undefined) {
+    const rows = Object.entries(w.inputs || {}).map(([k,v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("");
+    return `<div class="witness"><div class="wl">Witness — base ⇒ <b>${esc(w.lhs)}</b>, head ⇒ <b>${esc(w.rhs)}</b></div>`
+      + (rows ? `<table><tr><th>input</th><th>value</th></tr>${rows}</table>` : "") + `</div>`;
+  }
+  const rows = Object.entries(w).map(([k,v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("");
+  return `<div class="witness"><div class="wl">Counterexample inputs (re-executable)</div><table><tr><th>input</th><th>value</th></tr>${rows}</table></div>`;
+}
+
+function renderVerdict(el, r) {
+  const assume = (r.assumptions||[]).map(a => `<li>${esc(a)}</li>`).join("");
+  el.innerHTML =
+    `<span class="chip ${r.kind}">${esc(r.verdict)}</span>`
+    + (r.reason ? `<p class="reason">${esc(r.reason)}</p>` : "")
+    + (assume ? `<ul class="assume">${assume}</ul>` : "")
+    + witnessHtml(r.witness);
+}
+
+async function run() {
+  const s = current();
+  const r = await (await fetch("/run", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({engine:s.engine, base:$("base").value, head:$("head").value})})).json();
+  renderVerdict($("verdict"), r);
+  return r;
+}
+
+async function race() {
+  const s = current();
+  const [pvs, llm] = await Promise.all([
+    fetch("/run", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({engine:s.engine, base:$("base").value, head:$("head").value})}).then(x=>x.json()),
+    fetch("/judge", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({base:$("base").value, head:$("head").value})}).then(x=>x.json())
+  ]);
+  const pb = $("cardPvs").querySelector(".body"); pb.className="body";
+  pb.innerHTML = `<span class="chip ${pvs.kind}">${esc(pvs.verdict)}</span>${pvs.reason?`<p class="note">${esc(pvs.reason)}</p>`:""}`;
+  const lb = $("cardLlm").querySelector(".body"); lb.className="body";
+  const lkind = pvs.verdict.startsWith("EQUIVALENT") ? "good" : "bad"; // color the LLM by whether it matches truth
+  const truthGood = pvs.kind === "good";
+  const llmGood = (llm.verdict||"").startsWith("EQUIVALENT");
+  lb.innerHTML = `<span class="chip ${llmGood?'good':'bad'}">${esc(llm.verdict||"?")}</span>${llm.note?`<p class="note">${esc(llm.note)}</p>`:""}<p class="note">— ${esc(llm.model||"")}</p>`;
+  const disagree = llmGood !== truthGood;
+  $("cardLlm").classList.toggle("disagree", disagree);
+  $("cardPvs").classList.toggle("disagree", false);
+}
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+$("run").addEventListener("click", run);
+$("race").addEventListener("click", race);
+load();
+</script>
+</body>
+</html>

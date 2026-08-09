@@ -77,3 +77,32 @@ Window-function change
 
 No guess. `UNKNOWN` with a reason code is the designed-for outcome when a query
 falls outside what provensql can decide soundly.
+
+## Interactive booth demo (`app.py`)
+
+The static tour above is scripted; `app.py` is the **interactive** version built
+for the SIGMOD demonstration (see [../docs/sigmod2027_demo_outline.md](../docs/sigmod2027_demo_outline.md)
+and [../docs/demo_ui_scope.md](../docs/demo_ui_scope.md)). It is a thin local web
+viewer over the existing engines — it adds no equivalence logic — and runs fully
+offline.
+
+```
+pip install -e ".[demo]"     # adds Flask
+python -m demo.app           # serve on http://127.0.0.1:5000
+```
+
+Attendees pick a scenario and press **Check equivalence**. The four acts:
+
+1. **Prove & disprove** — proofs, a `SCHEMA_CHANGE`, an honest `UNKNOWN`, and a
+   `DIFFERENT` with a copyable witness row (engine: `compare`).
+2. **Turn on precision** — real-number-valid rewrites (reassociation,
+   distribution, cancellation) that diverge under IEEE-754, with a witness
+   (engine: `precision`, Float32).
+3. **Catch a real optimizer bug** — CALCITE-7145 and the `a/b` → `SAFE_DIVIDE`
+   error-changing refactor (engine: `error` lattice).
+4. **Beat the LLM** — the same pair to provensql and a (cached) LLM judge; the
+   judge confidently calls it `EQUIVALENT`, provensql disproves it.
+
+Scenarios live in `scenarios.json`; LLM responses are cached in `llm_cache.json`
+so the booth needs no network.
+
