@@ -26,8 +26,8 @@ total-arithmetic model silently equates an edit that *errors* with one that
 returns `NULL` (the archetypal `a/b` → `SAFE_DIVIDE(a,b)` refactor). We present
 the first **precision- and error-aware** SQL equivalence checker. It decides
 scalar rewrites under (i) an IEEE-754 floating-point model via the SMT theory of
-floating point, and (ii) a three-outcome ERROR/NULL/value lattice, and its
-primary, sound use is **disproof**: producing a concrete witness on which a
+floating point, and (ii) a three-outcome ERROR/NULL/value lattice. Its primary,
+sound use is **disproof**: producing a concrete witness on which a
 real-number-valid rewrite diverges under rounding or error semantics. We show
 the prover *disproves* reassociation, distribution, and cancellation with
 `Float32` counterexamples validated by re-execution, and separates
@@ -233,7 +233,7 @@ already guarded or already tracked. The result is that a single checker
 re-derives the guards and flags the tracked defects automatically, on axes no
 equivalence prover models.
 
-## 7. Automatic ingestion: an interpretation study
+## 7. Automatic ingestion: validation and yield measurement
 
 To test whether the approach scales beyond a curated corpus, we built an
 ingestion pipeline (`mining/calcite_ingest/`) that harvests a real optimizer's
@@ -289,7 +289,7 @@ the harness takes its path.
 
 - **Proving is intractable; disproof is the contribution.** Deciding
   precision-*equivalence* (UNSAT over `QF_FP`) is expensive enough that even
-  commutativity does not prove within a practical budget at `Float64`, and the
+  commutativity may not prove within a practical budget at `Float64`, and the
   distribution disproof's runtime is nondeterministic under load. We therefore
   center the contribution on *disproof* — producing divergence witnesses — which
   is sound, fast, and is exactly the operation that finds bugs. `EQUIVALENT_FP`
@@ -311,9 +311,10 @@ the harness takes its path.
 Cosette/HoTTSQL [1,2], EQUITAS [3], and SPES [4] established SMT- and
 proof-based equivalence over set/bag semantics; WeTune [5] applied it to rule
 discovery. The current frontier — QED [6] (bag normal forms, integrity
-constraints, `NULL`s), VeriEQL [7] (bounded prove/disprove with rich
-constraints and counterexamples), and Polygon [8] — advances the *proving*
-frontier substantially, and this work does not compete there. Our axis is
+constraints, `NULL`s), VeriEQL [7] (bounded proving *and* disproving with rich
+constraints and counterexamples), and Polygon [8] (conflict-driven
+under-approximation for disproof and input generation) — advances both proving
+and disproving substantially, and this work does not compete there. Our axis is
 orthogonal: all of these model numbers as exact and arithmetic as total, and
 none reasons about `IEEE-754` rounding or a first-class error outcome. The
 floating-point verification literature [10] and SMT-FP [13] supply the
