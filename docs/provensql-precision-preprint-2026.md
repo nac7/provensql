@@ -2,7 +2,8 @@
 
 **Nachiket Lele**, Independent Researcher · ORCID [0009-0000-7932-0952](https://orcid.org/0009-0000-7932-0952)
 
-**Preprint, August 2026.** A DOI will be assigned on Zenodo deposit. All
+**Preprint, August 2026.** DOI
+[10.5281/zenodo.21862537](https://doi.org/10.5281/zenodo.21862537). All
 numbers below are reproducible from the harness in `provensql/`, `mining/`, and
 `scripts/`; see §8. This is the top-tier research track (Paper 2) that extends
 the tool described in the companion preprint (DOI
