@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "provensql"
-version = "0.1.1"
+version = "0.2.0"
 description = "Sound-by-construction semantic diff for SQL: know whether a query edit changes the answer."
 readme = "README.md"
 license = { text = "Apache-2.0" }
